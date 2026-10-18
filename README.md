@@ -12,7 +12,7 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Run `ca-mame` from the build output directory. The initial executable is a hardware-agnostic scaffold.
+Run `ca-mame` from the build output directory for the headless scaffold. The optional SDL3 frontend requires SDL3 development files and four legally obtained Space Invaders ROMs.\n\n```sh\ncmake -S . -B build-sdl -DCA_MAME_ENABLE_SDL3=ON\ncmake --build build-sdl --config Release\n# Windows: build-sdl/Release/ca-mame-sdl.exe invaders.h invaders.g invaders.f invaders.e\n# Linux/macOS: build-sdl/ca-mame-sdl invaders.h invaders.g invaders.f invaders.e\n```\n\nThe ROM order is important: invaders.h (0x0000), invaders.g (0x0800), invaders.f (0x1000), invaders.e (0x1800). Keyboard: C coin, 1/2 start, Left/Right/Space player 1, A/D/Right Ctrl player 2, Escape quit.\n\n**Limitations:** The Space Invaders driver and Intel 8080 CPU are preliminary; original ROM execution is not yet validated end-to-end. SDL3 frontend is not exercised by the default CI matrix. No audio emulation or ROM auditing is provided.
 
 ## Architecture
 
@@ -21,9 +21,9 @@ Run `ca-mame` from the build output directory. The initial executable is a hardw
 - `bus`: addressable memory bus
 - `video`: framebuffer/video-device interface
 - `audio`: audio-device interface
-- `drivers`: future arcade board configurations
+- `drivers`: preliminary Space Invaders board implementation
 - `rom`: future ROM definitions and validation
-- `frontend`: CLI now; SDL frontend later
+- `frontend`: headless CLI and optional SDL3 graphics/input frontend
 - `tests`: deterministic unit tests
 
 ## Roadmap
