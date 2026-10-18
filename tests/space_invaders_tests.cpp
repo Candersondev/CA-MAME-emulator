@@ -74,5 +74,35 @@ int main() {
     expect(video[255*224]==0xffffffffu,"video bit 0 maps to lower-left pixel");
     expect(video[248*224]==0xffffffffu,"video bit 7 maps to eighth pixel");
     expect(video[254*224]==0xff000000u,"unset video bits remain black");
+    // Board-level interrupt delivery: each half-frame requests alternating
+    // RST 1 (0x08) and RST 2 (0x10), acknowledged at the next CPU step.
+    {
+        ca_mame::drivers::SpaceInvaders irqBoard;
+        const std::array<std::uint8_t,1> haltRom={0x76};
+        expect(irqBoard.loadRom(0,haltRom),"load interrupt test HALT");
+        irqBoard.cpu().sp=0x2400;
+        irqBoard.cpu().setInterruptEnabled(true);
+        const auto firstCycles=irqBoard.runHalfFrame();
+        expect(firstCycles>=16666 && irqBoard.elapsedHalfFrames()==1,"first interrupt boundary at 120 Hz");
+        expect(irqBoard.cpu().halted,"CPU remains halted until interrupt acknowledgment");
+        expect(irqBoard.cpu().step()==11 && irqBoard.cpu().pc==0x08,"first board interrupt is RST 1");
+        expect(!irqBoard.cpu().halted && !irqBoard.cpu().interruptsEnabled(),"RST 1 wakes CPU and masks interrupts");
+        expect(irqBoard.cpu().sp==0x23fe && irqBoard.readMemory(0x23fe)==1 &&
+               irqBoard.readMemory(0x23ff)==0,"RST 1 pushes HALT return address");
+    }
+    {
+        ca_mame::drivers::SpaceInvaders irqBoard;
+        const std::array<std::uint8_t,1> haltRom={0x76};
+        expect(irqBoard.loadRom(0,haltRom),"load masked interrupt test HALT");
+        irqBoard.cpu().sp=0x2400;
+        irqBoard.runHalfFrame(); // RST 1 must be discarded while INTE is clear.
+        expect(irqBoard.cpu().step()==4 && irqBoard.cpu().halted,"masked RST 1 does not wake HALT");
+        irqBoard.cpu().setInterruptEnabled(true);
+        irqBoard.runHalfFrame(); // Second boundary must request RST 2.
+        expect(irqBoard.elapsedHalfFrames()==2,"second half-frame boundary reached");
+        expect(irqBoard.cpu().step()==11 && irqBoard.cpu().pc==0x10,"second board interrupt is RST 2");
+        expect(irqBoard.cpu().sp==0x23fe && irqBoard.readMemory(0x23fe)==1,
+               "RST 2 pushes HALT return address");
+    }
     return failures?1:0;
 }
