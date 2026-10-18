@@ -34,13 +34,13 @@ int main(){
     assert(bus.write32(0x100,0x3860002a)); // addi r3,r0,42
     assert(bus.write32(0x104,0x38800100)); // addi r4,r0,256
     assert(bus.write32(0x108,(37u<<26)|(3u<<21)|(4u<<16)|4u)); // stwu r3,4(r4)
-    assert(bus.write32(0x10c,(33u<<26)|(5u<<21)|(4u<<16)|4u)); // lwzu r5,4(r4)
+    assert(bus.write32(0x10c,(33u<<26)|(5u<<21)|(4u<<16))); // lwzu r5,4(r4)
     assert(bus.write32(0x110,xform(6,9,467))); // mtspr CTR,r6
     assert(bus.write32(0x114,(16u<<26)|(16u<<21)|8u)); // bdnz +8
     assert(bus.write32(0x118,0x60000000)); // nop
     assert(bus.write32(0x11c,0x60000000)); // nop
     cpu.setPC(0x100);cpu.setGpr(6,2);
     for(int i=0;i<5;++i)assert(cpu.step()==1);
-    assert(cpu.gpr(4)==0x108 && cpu.gpr(5)==42 && cpu.ctr()==2);
+    assert(cpu.gpr(4)==0x104 && cpu.gpr(5)==42 && cpu.ctr()==2);
     assert(cpu.step()==1 && cpu.pc()==0x11c && cpu.ctr()==1);
 }
