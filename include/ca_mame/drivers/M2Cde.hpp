@@ -9,6 +9,39 @@ public:
     static constexpr std::uint32_t size=0x01000000u;
     static constexpr std::uint32_t serialWriteDone=0x10000000u;
     void reset() noexcept {serialControl_=0;status_=0;enable_=0;bootBlockEnable_=1;visaDisable_=0;for(auto& device:devices_)device={};for(auto& channel:dma_)channel={};}
+    // Explicit test-device data injection; no physical CD device is emulated.
+    bool loadBioByte(std::uint32_t address,std::uint8_t value) noexcept {
+        if(address<0x20000000u || address>=0x20010000u)return false;
+        bioRam_[address-0x20000000u]=value;
+        return true;
+    }
+    bool readBioByte(std::uint32_t address,std::uint8_t& value) const noexcept {
+        if(address<0x20000000u || address>=0x20010000u)return false;
+        value=bioRam_[address-0x20000000u];
+        return true;
+    }
+    struct Transfer {std::uint32_t source=0,destination=0,count=0;bool fixedSource=false;};
+    bool prepareTransfer(unsigned index,std::uint32_t control,Transfer& transfer) const noexcept {
+        if(index>=2 || !(control&0x80u) || (control&0x400u))return false;
+        const auto& ch=dma_[index];
+        if(ch.count==0 || ch.count>0x10000u || (ch.count&1u) ||
+           (ch.powerAddress&1u) || (ch.busAddress&1u))return false;
+        const unsigned slot=((ch.busAddress>>26)&7u);
+        const auto setup=devices_[slot].setup;
+        if(!(setup&0x800u))return false; // 16-bit BioBus only
+        transfer={ch.busAddress,ch.powerAddress,ch.count,(setup&0xe000u)!=0};
+        if(transfer.source<0x20000000u || transfer.source>=0x20010000u)return false;
+        const auto bytes=transfer.fixedSource?2u:transfer.count;
+        return bytes<=0x10000u-(transfer.source-0x20000000u);
+    }
+    void completeTransfer(unsigned index,const Transfer& transfer) noexcept {
+        auto& ch=dma_[index];
+        ch.busAddress+=transfer.fixedSource?0u:transfer.count;
+        ch.powerAddress+=transfer.count;
+        ch.count=0;
+        ch.control&=~0x80u;
+        status_|=(index==0?0x80u:0x100u);
+    }
     bool interruptAsserted() const noexcept {return (status_&enable_)!=0;}
     void raiseInterrupt(std::uint32_t mask) noexcept {status_|=mask;}
     bool read32(std::uint32_t offset,std::uint32_t& value) const noexcept {
@@ -86,6 +119,7 @@ private:
     struct BioDevice {std::uint32_t setup=0,cycleTime=0;};
     struct DmaChannel {std::uint32_t control=0,busAddress=0,powerAddress=0,count=0;};
     std::array<BioDevice,8> devices_{};
+    std::array<std::uint8_t,0x10000> bioRam_{};
     std::array<DmaChannel,2> dma_{};
     std::uint32_t serialControl_=0,status_=0,enable_=0,bootBlockEnable_=1,visaDisable_=0;
 };
