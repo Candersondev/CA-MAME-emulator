@@ -1,6 +1,7 @@
 #include "ca_mame/compat/AuditStore.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
 #include <fstream>
+#include <utility>
 #include <system_error>
 namespace ca_mame::compat {
 bool AuditStore::load(const std::filesystem::path& file){
