@@ -30,6 +30,11 @@ public:
                 index==0?cycles0_:cycles1_,c.faulted(),c.externalInterrupt()};
     }
     // Stop as soon as either CPU reports an unsupported instruction or bus fault.
+    struct ExecutionReport {std::uint64_t steps=0;CpuSnapshot cpu0{},cpu1{};bool budgetExhausted=false;};
+    ExecutionReport diagnoseBoot(std::uint64_t maxPairs) {
+        const auto steps=runUntilFault(maxPairs);
+        return {steps,snapshot(0),snapshot(1),steps==maxPairs};
+    }
     std::uint64_t runUntilFault(std::uint64_t maxPairs) {
         std::uint64_t completed=0;
         while(completed<maxPairs && !cpu0_.faulted() && !cpu1_.faulted()){
