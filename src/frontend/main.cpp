@@ -18,8 +18,8 @@ int main(int argc,char** argv) {
             catch(...){std::cerr<<"Invalid instruction count\n";return 2;}
             if(limit>100000){std::cerr<<"Maximum trace length is 100000\n";return 2;}
         }
+        board.powerOnReset();
         auto& cpu=board.cpu(0);
-        cpu.setPC(ca_mame::drivers::M2MemoryMap::bootRomBase);
         std::cout<<"M2 diagnostic trace: experimental CPU, not a firmware boot guarantee\n";
         for(unsigned i=0;i<limit;++i){
             const auto address=cpu.pc();
