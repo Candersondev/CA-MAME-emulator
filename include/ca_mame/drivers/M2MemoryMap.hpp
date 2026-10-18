@@ -1,10 +1,11 @@
 #pragma once
 #include <cstdint>
+#include "ca_mame/bus/WordBus.hpp"
 #include "ca_mame/bus/BigEndianBus.hpp"
 #include "ca_mame/drivers/M2InterruptController.hpp"
 namespace ca_mame::drivers {
 // Prototype register layout for unit tests ONLY; real M2 addresses are not established.
-class M2MemoryMap {
+class M2MemoryMap final : public WordBus {
 public:
     static constexpr std::uint32_t ramBase=0x00000000;
     static constexpr std::uint32_t ramSize=1024*1024;
