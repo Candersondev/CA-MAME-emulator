@@ -7,8 +7,7 @@
 #include "ca_mame/bus/IoBus.hpp"
 #include "ca_mame/cpu/Intel8080.hpp"
 namespace ca_mame::drivers {
-// First-pass monochrome Space Invaders hardware model.
-// ROM loading, ROM write protection, watchdog, audio and input mapping are incomplete.
+// Space Invaders board model. Sound events are latched; audio synthesis and watchdog remain TODO.
 class SpaceInvaders {
 public:
     static constexpr std::size_t Width=224, Height=256;
@@ -19,6 +18,10 @@ public:
     bool loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes);
     std::uint8_t readMemory(std::uint16_t address) const { return memory_.read(address); }
     std::uint8_t readPort(std::uint8_t port) const { return io_.read(port); }
+    std::uint8_t soundPort3() const noexcept { return sound3_; }
+    std::uint8_t soundPort5() const noexcept { return sound5_; }
+    std::uint8_t soundRisingEdges3() noexcept { const auto edges=sound3Edges_; sound3Edges_=0; return edges; }
+    std::uint8_t soundRisingEdges5() noexcept { const auto edges=sound5Edges_; sound5Edges_=0; return edges; }
     void writePort(std::uint8_t port,std::uint8_t value) { io_.write(port,value); }
     std::uint64_t runHalfFrame();
     std::uint64_t elapsedCycles() const noexcept { return cycles_; }
@@ -32,6 +35,7 @@ private:
     std::array<std::uint8_t,4> inputs_{};
     std::uint16_t shift_=0;
     std::uint8_t shiftOffset_=0;
+    std::uint8_t sound3_=0,sound5_=0,sound3Edges_=0,sound5Edges_=0;
     std::uint64_t cycles_=0;
     unsigned halfFrames_=0;
 };
