@@ -52,3 +52,6 @@ The CDE is mapped into BDA slot 4 at `0x04000000–0x04ffffff`. CA-MAME currentl
 
 ## CDE BioBus and DMA register staging
 Eight BioBus devices expose setup and cycle-time registers at CDE offsets `0x240–0x27c`. Two DMA channels expose control, BioBus address, PowerBus address and count at `0x1000–0x100c` and `0x1020–0x102c`. Write aliases at offset +`0x400` clear register bits. Rising DMA_RESET clears that channel's staged state. DMA_CURR_VALID (0x80) is rejected because no transfer engine exists. Next-descriptor registers, CD DMA, DMA timers, bus transactions and ATAPI remain unimplemented. Tests exercise both banks and reset isolation.
+
+## Experimental BioBus-to-PowerBus DMA
+The first transfer path copies even byte counts (up to 64 KiB) in 16-bit units from a simulated 64 KiB BioBus buffer at `0x20000000` to M2 RAM at `0x40000000`. It supports channels 0/1, fixed source when the setup register requests I/O, DMA completion status bits 0x80/0x100 and interrupt enable gating. Transfers are immediate (no timing) and restricted to this synthetic BioBus device. Unsupported reverse transfers, 8-bit modes, source ranges and invalid destination ranges fail explicitly. No ATAPI drive or disc data is connected. The DMA control write is intercepted by the M2 memory map; the CDE register model alone does not execute transfers.
