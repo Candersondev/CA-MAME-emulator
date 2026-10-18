@@ -6,9 +6,28 @@
 #include <string_view>
 #include "ca_mame/core/MachineRegistry.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
+#include "ca_mame/compat/GameLibrary.hpp"
 #include <fstream>
 #include <sstream>
 int main(int argc,char** argv) {
+    if(argc>=4 && std::string_view(argv[1])=="--mame-library"){
+        std::ifstream input(argv[2],std::ios::binary);
+        if(!input){std::cerr<<"Unable to open MAME XML catalog\n";return 2;}
+        std::ostringstream buffer;buffer<<input.rdbuf();
+        const auto games=ca_mame::compat::MameBridge::parseListXml(buffer.str());
+        const auto scan=ca_mame::compat::GameLibrary::scan(games,argv[3]);
+        if(!scan.directoryAccessible){std::cerr<<"ROM directory is not accessible\n";return 2;}
+        const bool localOnly=argc>=5 && std::string_view(argv[4])=="--local";
+        const auto matches=ca_mame::compat::GameLibrary::filter(scan,{},localOnly);
+        for(const auto& item:matches)
+            std::cout<<item.game.name<<" | "<<item.game.description
+                     <<" | "<<(item.localArchive?"archive present":"no archive")
+                     <<" | "<<(item.hasChdDirectory?"game directory present":"no game directory")<<"\n";
+        std::cout<<"Catalog: "<<games.size()<<", archives: "<<scan.archiveCount
+                 <<", unmatched archives: "<<scan.unknownArchives
+                 <<", shown: "<<matches.size()<<" (presence only; NOT ROM verification)\n";
+        return 0;
+    }
     if(argc>=4 && (std::string_view(argv[1])=="--mame-launch" ||
                     std::string_view(argv[1])=="--mame-verify")){
         const bool verify=std::string_view(argv[1])=="--mame-verify";
