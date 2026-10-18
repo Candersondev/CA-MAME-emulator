@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
-FetchContent_Declare(zlib SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/zlib-src" URL https://zlib.net/fossils/zlib-1.3.1.tar.gz)
+FetchContent_Declare(zlib URL https://github.com/madler/zlib/archive/refs/tags/v1.3.1.tar.gz DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 # Prefer system zlib when available; otherwise fetch the portable source.
 find_package(ZLIB QUIET)
 if(NOT ZLIB_FOUND)
