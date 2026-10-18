@@ -53,6 +53,10 @@ std::vector<Game> MameBridge::parseListXml(std::string_view xml){
    Game game;game.name=std::move(name);game.description=element(body,"description");
    game.year=element(body,"year");game.manufacturer=element(body,"manufacturer");
    game.runnable=attribute(tag,"runnable")!="no";
+   game.sourceFile=attribute(tag,"sourcefile");
+   game.parent=attribute(tag,"cloneof");
+   game.bios=attribute(tag,"romof");
+   game.mechanical=attribute(tag,"ismechanical")=="yes";
    result.push_back(std::move(game));
   }
   pos=close+10;
@@ -94,6 +98,10 @@ std::vector<Game> MameBridge::parseListXml(std::istream& input){
     game.year=element(body,"year");
     game.manufacturer=element(body,"manufacturer");
     game.runnable=attribute(tag,"runnable")!="no";
+   game.sourceFile=attribute(tag,"sourcefile");
+   game.parent=attribute(tag,"cloneof");
+   game.bios=attribute(tag,"romof");
+   game.mechanical=attribute(tag,"ismechanical")=="yes";
     result.push_back(std::move(game));
    }
    consumed=close+10;
