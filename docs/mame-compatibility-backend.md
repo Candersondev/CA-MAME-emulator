@@ -16,3 +16,6 @@ Run `ca-mame --mame-library catalog.xml /path/to/roms` to enumerate catalog entr
 
 ## SDL3 graphical browser
 When built with `CA_MAME_ENABLE_SDL3=ON`, the `ca-mame-library` executable offers a keyboard-operated graphical browser: `ca-mame-library catalog.xml /path/to/roms /path/to/mame`. Type to search game ID, description, or manufacturer; Tab toggles local-only versus all; arrow/Page Up/Page Down keys navigate; Enter launches selected game using external MAME; Escape quits. This is an initial SDL3 text-based GUI using SDL's built-in debug font, not a full featured artwork browser. Launch is synchronous; the browser hides while MAME runs. Local indicators mean filename/directory presence only, not verified ROM integrity.
+
+## Persistent ROM audit status
+In the SDL3 game browser press F5 on the selected game to invoke the installed MAME executable with `-verifyroms`. CA-MAME records PASS for exit code zero and FAIL for a nonzero exit code, in `.ca-mame-audits.tsv` inside the ROM directory; unknown entries display `[????]`. This is the last recorded MAME process result, not a live check. It does not parse detailed audit messages, detect changed ROM files, or confirm actual gameplay. The ROM directory must be writable to save status.
