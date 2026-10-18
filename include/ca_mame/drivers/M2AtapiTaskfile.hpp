@@ -12,7 +12,10 @@ public:
     static constexpr std::uint32_t size=0x01000000u;
     explicit M2AtapiTaskfile(AtapiCdRom& cd) noexcept:cd_(cd){}
     void reset() noexcept {status_=0x40;error_=0;features_=0;byteCount_=0;packetBytes_=0;dataIndex_=0;response_.clear();awaitingPacket_=false;irq_=false;}
-    bool interruptAsserted() const noexcept{return irq_;}
+    bool interruptAsserted() const noexcept{return irq_ && !(features_&0x80u);}
+    std::uint8_t status() const noexcept{return status_;}
+    std::uint8_t error() const noexcept{return error_;}
+    std::size_t pendingBytes() const noexcept{return response_.size()-dataIndex_;}
     bool read32(std::uint32_t offset,std::uint32_t& value) noexcept {
         switch(offset){
             case 0x00:
@@ -20,7 +23,7 @@ public:
                 value=std::uint32_t(response_[dataIndex_])<<8;
                 if(dataIndex_+1<response_.size())value|=response_[dataIndex_+1];
                 dataIndex_+=2;
-                if(dataIndex_>=response_.size()){status_=0x40;irq_=true;}
+                if(dataIndex_>=response_.size()){status_=0x40;byteCount_=0;irq_=true;}
                 return true;
             case 0x04:value=error_;return true;
             case 0x08:value=byteCount_&0xffu;return true;
@@ -41,7 +44,7 @@ public:
                     if(cd_.packet(packet_,response_)){
                         dataIndex_=0;status_=response_.empty()?0x40:0x48;
                         byteCount_=static_cast<std::uint16_t>(response_.size()>65535?65535:response_.size());
-                    }else{status_=0x41;error_=0x04;}
+                    }else{status_=0x41;error_=0x04;byteCount_=0;}
                     irq_=true;
                 }
                 return true;
@@ -51,7 +54,7 @@ public:
             case 0x10:
                 irq_=false;error_=0;
                 if((value&0xffu)==0xa0u){
-                    awaitingPacket_=true;packetBytes_=0;response_.clear();status_=0x48;return true;
+                    awaitingPacket_=true;packetBytes_=0;response_.clear();dataIndex_=0;status_=0x48;return true;
                 }
                 if((value&0xffu)==0x08u){reset();return true;}
                 status_=0x41;error_=0x04;irq_=true;return false;
