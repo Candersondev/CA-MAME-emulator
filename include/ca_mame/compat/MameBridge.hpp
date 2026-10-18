@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 namespace ca_mame::compat {
-struct Game {std::string name,description,year,manufacturer;bool runnable=false;};
+struct Game {std::string name,description,year,manufacturer,sourceFile,parent,bios,deviceRef;bool runnable=false,mechanical=false;};
 struct LaunchPlan {std::filesystem::path executable;std::vector<std::string> arguments;};
 class MameBridge {
 public:
