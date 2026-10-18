@@ -14,7 +14,7 @@ int main(){
  constexpr auto b=M2AtapiTaskfile::base;
  if(!m.loadWord(b+0x10,0xa0))return 3;
  // READ(10), starting LBA 1, two sectors
- const std::array<std::uint16_t,6> cmd={0x2800,0,0x0001,0,0x0200,0};
+ const std::array<std::uint16_t,6> cmd={0x2800,0,0x0001,0,0x0002,0};
  for(const auto w:cmd)if(!m.loadWord(b,w))return 4;
  std::uint32_t v=0;
  if(!m.readWord(b+0x10,v)||v!=0x48)return 5;
