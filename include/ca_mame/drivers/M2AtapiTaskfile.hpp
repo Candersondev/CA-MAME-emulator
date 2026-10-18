@@ -12,7 +12,7 @@ public:
     static constexpr std::uint32_t size=0x01000000u;
     explicit M2AtapiTaskfile(AtapiCdRom& cd) noexcept:cd_(cd){}
     void reset() noexcept {status_=0x40;error_=0;features_=0;byteCount_=0;packetBytes_=0;dataIndex_=0;response_.clear();awaitingPacket_=false;irq_=false;}
-    bool interruptAsserted() const noexcept{return irq_ && !(features_&0x80u);}
+    bool interruptAsserted() const noexcept{return irq_;}
     std::uint8_t status() const noexcept{return status_;}
     std::uint8_t error() const noexcept{return error_;}
     std::size_t pendingBytes() const noexcept{return response_.size()-dataIndex_;}
