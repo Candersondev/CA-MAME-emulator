@@ -18,7 +18,7 @@ int main(){
  const auto streamed=MameBridge::parseListXml(input);
  if(streamed.size()!=games.size()||streamed[0].name!="evilngt"||streamed[1].runnable)return 8;
  std::string large="<mame>";
- for(int i=0;i<5000;++i)large+="<machine name=\\\"game"+std::to_string(i)+"\\\"><description>Game</description></machine>";
+ for(int i=0;i<5000;++i)large+="<machine name="+std::string(1,char(34))+"game"+std::to_string(i)+char(34)+"><description>Game</description></machine>";
  large+="</mame>";
  std::istringstream bulk(large);
  if(MameBridge::parseListXml(bulk).size()!=5000)return 9;
