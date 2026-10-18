@@ -8,6 +8,7 @@
 #include "ca_mame/drivers/M2InterruptController.hpp"
 #include "ca_mame/drivers/M2Cde.hpp"
 #include "ca_mame/drivers/AtapiCdRom.hpp"
+#include "ca_mame/drivers/M2AtapiTaskfile.hpp"
 namespace ca_mame::drivers {
 // Prototype register layout for unit tests ONLY; real M2 addresses are not established.
 class M2MemoryMap final : public WordBus {
@@ -21,7 +22,7 @@ public:
     static constexpr std::uint32_t bootRomBase=0x20000000;
     static constexpr std::uint32_t bootRomSize=0x200000;
     static constexpr std::uint32_t bootRomMirrorBase=0xfff00000;
-    explicit M2MemoryMap(M2InterruptController& irq):ram_(ramSize),bootRom_(bootRomSize),irq_(irq){}
+    explicit M2MemoryMap(M2InterruptController& irq):ram_(ramSize),bootRom_(bootRomSize),taskfile_(cdRom_),irq_(irq){}
     bool loadBootRom(const std::string& path) {
         std::ifstream file(path,std::ios::binary|std::ios::ate);
         if(!file || file.tellg()!=static_cast<std::streamoff>(bootRomSize))return false;
@@ -50,14 +51,15 @@ public:
         responseSize=response.size();
         return true;
     }
-    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();}
+    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();taskfile_.reset();}
     bool loadBioByte(std::uint32_t address,std::uint8_t value) noexcept {return cde_.loadBioByte(address,value);}
     bool readBioByte(std::uint32_t address,std::uint8_t& value) const noexcept {return cde_.readBioByte(address,value);}
     void raiseHardwareInterrupt(unsigned line) noexcept {if(line<32)powerBusStatus_|=(1u<<line);}
-    bool hardwareInterruptAsserted() const noexcept{return (powerBusStatus_&powerBusEnable_)!=0 || cde_.interruptAsserted();}
+    bool hardwareInterruptAsserted() const noexcept{return (powerBusStatus_&powerBusEnable_)!=0 || cde_.interruptAsserted() || taskfile_.interruptAsserted();}
     // Loads a word into ROM storage, bypassing guest read-only protection.
     bool loadBootWord(std::uint32_t offset,std::uint32_t value) noexcept{return bootRom_.write32(offset,value);}
     bool read32(std::uint32_t address,std::uint32_t& value) const noexcept {
+        if(address>=M2AtapiTaskfile::base && address<M2AtapiTaskfile::base+M2AtapiTaskfile::size)return taskfile_.read32(address-M2AtapiTaskfile::base,value);
         if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size)return cde_.read32(address-M2Cde::base,value);
         if(address>=ramBase && address<ramBase+ramSize)return ram_.read32(address-ramBase,value);
         if(address<ramSize && (address<0x10000u || address>=0x100000u))return ram_.read32(address,value); // legacy test harness alias
@@ -75,6 +77,7 @@ public:
         return false;
     }
     bool write32(std::uint32_t address,std::uint32_t value) noexcept {
+        if(address>=M2AtapiTaskfile::base && address<M2AtapiTaskfile::base+M2AtapiTaskfile::size)return taskfile_.write32(address-M2AtapiTaskfile::base,value);
         if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size){
             const auto offset=address-M2Cde::base;
             if(offset==0x1000u || offset==0x1020u){
@@ -122,6 +125,7 @@ private:
     BigEndianBus ram_,bootRom_;
     M2Cde cde_;
     AtapiCdRom cdRom_;
+    M2AtapiTaskfile taskfile_;
     M2InterruptController& irq_;
     std::uint32_t powerBusEnable_=0,powerBusStatus_=0;
     // Two 8 MiB banks: SS1=5 at bit 13, SS0=5 at bit 10.
