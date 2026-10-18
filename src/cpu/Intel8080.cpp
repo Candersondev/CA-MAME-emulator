@@ -132,7 +132,7 @@ std::uint32_t Intel8080::step() {
         case 0xeb:{auto oldD=d,oldE=e;d=h;e=l;h=oldD;l=oldE;return 5;}
         case 0xf3:inte_=false;eiDelay_=0;return 4;
         case 0xf9:sp=hl();return 5;
-        case 0xfb:inte_=false;eiDelay_=3;return 4;
+        case 0xfb:inte_=false;eiDelay_=2;return 4;
         default:throw std::runtime_error("Unimplemented Intel 8080 opcode");
     }
 }
