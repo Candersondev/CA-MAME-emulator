@@ -13,7 +13,11 @@ public:
     void setPC(std::uint32_t pc) noexcept{pc_=pc;}
     std::uint32_t gpr(unsigned i) const noexcept{return registers_[i&31];}
     void setGpr(unsigned i,std::uint32_t v) noexcept{registers_[i&31]=v;}
+    enum class StopReason {None,InstructionFetch,DataAccess,UnsupportedInstruction};
     bool faulted() const noexcept{return fault_;}
+    StopReason stopReason() const noexcept{return stopReason_;}
+    std::uint32_t faultAddress() const noexcept{return faultAddress_;}
+    std::uint32_t faultInstruction() const noexcept{return faultInstruction_;}
     void setExternalInterrupt(bool asserted) noexcept {externalInterrupt_=asserted;}
     bool externalInterrupt() const noexcept{return externalInterrupt_;}
     static constexpr std::uint32_t MSR_EE=0x00008000u;
@@ -22,13 +26,16 @@ public:
     std::uint32_t srr0() const noexcept{return srr0_;}
     std::uint32_t srr1() const noexcept{return srr1_;}
     std::uint32_t lr() const noexcept{return lr_;}
+    std::uint32_t ctr() const noexcept{return ctr_;}
     std::uint32_t cr() const noexcept{return cr_;}
 private:
     WordBus& bus_;
     std::array<std::uint32_t,32> registers_{};
     std::uint32_t pc_=0;
     bool fault_=false;
-    std::uint32_t lr_=0,cr_=0;
+    std::uint32_t lr_=0,cr_=0,ctr_=0;
+    StopReason stopReason_=StopReason::None;
+    std::uint32_t faultAddress_=0,faultInstruction_=0;
     std::uint32_t srr0_=0,srr1_=0,msr_=0;
     bool externalInterrupt_=false;
 };
