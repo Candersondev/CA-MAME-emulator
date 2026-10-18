@@ -35,3 +35,8 @@ Run `ca-mame` from the build output directory for the headless scaffold. The opt
 5. Add SDL3 display/input/audio and regression tests.
 
 No proprietary ROMs or copyrighted BIOS images are included.
+
+
+### Experimental Konami M2 boot trace
+
+After building `ca-mame`, run `ca-mame --m2-trace path/to/your-legally-obtained-2MiB-boot-rom.bin 100` to log up to 100 instructions from the currently modeled ROM base. This is diagnostic only; Evil Night is not bootable. ROM size must be exactly 2,097,152 bytes. The RAM layout is provisional and does not yet match all M2 BDA memory decoding.
