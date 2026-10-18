@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <vector>
 #include "ca_mame/drivers/M2MemoryMap.hpp"
 #include "ca_mame/drivers/M2CpuBus.hpp"
 #include "ca_mame/cpu/PowerPC602.hpp"
@@ -30,6 +31,34 @@ public:
                 index==0?cycles0_:cycles1_,c.faulted(),c.externalInterrupt()};
     }
     // Stop as soon as either CPU reports an unsupported instruction or bus fault.
+    struct BootTraceEntry {
+        std::uint64_t pair=0;
+        std::uint32_t pc0=0,pc1=0;
+        bool fault0=false,fault1=false;
+    };
+    struct BootTrace {
+        std::vector<BootTraceEntry> entries;
+        std::uint64_t executedPairs=0;
+        bool stoppedOnFault=false;
+    };
+    // Capture periodic CPU progress without requiring proprietary BIOS images.
+    BootTrace traceBoot(std::uint64_t maxPairs,std::uint64_t sampleEvery=1,
+                        std::size_t maxEntries=4096) {
+        BootTrace trace;
+        if(sampleEvery==0)sampleEvery=1;
+        for(std::uint64_t i=0;i<maxPairs;++i){
+            if(cpu0_.faulted()||cpu1_.faulted())break;
+            if(i%sampleEvery==0 && trace.entries.size()<maxEntries)
+                trace.entries.push_back({i,cpu0_.pc(),cpu1_.pc(),false,false});
+            stepPair();
+            ++trace.executedPairs;
+        }
+        trace.stoppedOnFault=cpu0_.faulted()||cpu1_.faulted();
+        if(trace.stoppedOnFault && trace.entries.size()<maxEntries)
+            trace.entries.push_back({trace.executedPairs,cpu0_.pc(),cpu1_.pc(),
+                                     cpu0_.faulted(),cpu1_.faulted()});
+        return trace;
+    }
     struct ExecutionReport {std::uint64_t steps=0;CpuSnapshot cpu0{},cpu1{};bool budgetExhausted=false;};
     ExecutionReport diagnoseBoot(std::uint64_t maxPairs) {
         const auto steps=runUntilFault(maxPairs);
