@@ -37,6 +37,7 @@ int main() {
     const std::array<std::uint8_t,3> mirroredStore={0x32,0x00,0x60};
     expect(board.loadRom(0x110,mirroredStore),"load mirrored RAM store instruction");
     board.cpu().pc=0x110;
+    board.cpu().halted=false;
     board.cpu().a=0xa5;
     board.cpu().step();
     expect(board.readMemory(0x2000)==0xa5,"STA writes mapped RAM at 0x2000");
