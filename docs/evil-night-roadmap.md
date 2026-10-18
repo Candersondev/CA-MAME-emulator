@@ -1,6 +1,6 @@
 # Evil Night (Konami M2) compatibility target
 
-**Status: research / unsupported.** No PowerPC 602 or Konami M2 driver exists in CA-MAME yet. Do not list this game as playable.
+**Status: research / unsupported.** Reusable mouse/light-gun state implemented and unit-tested; not yet wired to a Konami M2 driver. No PowerPC 602 or Konami M2 driver exists in CA-MAME yet. Do not list this game as playable.
 
 ## Verified hardware reference
 
@@ -30,3 +30,11 @@
 - Runs at practical speed and is covered by repeatable regression tests.
 
 **Licensing:** CA-MAME remains an independent project. Do not copy MAME implementation code without a deliberate licensing review.
+
+## Windows mouse control specification
+
+- Player 1: move the mouse to aim; left mouse button fires; right mouse button reloads.
+- Aim coordinates must be converted from SDL window coordinates to the game's logical render area, accounting for letterboxing and scaling.
+- A shot outside the logical image should be reported as off-screen/reload, not clamped to an in-game hit.
+- Shared input state lives in `include/ca_mame/input/LightGun.hpp` and is unit-tested.
+- This is an input subsystem milestone only. Evil Night cannot boot until its M2 hardware driver and media support exist.
