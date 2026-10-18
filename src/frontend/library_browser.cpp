@@ -14,8 +14,7 @@ int main(int argc,char** argv){
  if(argc<4){std::cerr<<"Usage: ca-mame-library <catalog.xml> <rom-directory> <mame-executable>\n";return 2;}
  std::ifstream file(argv[1],std::ios::binary);
  if(!file){std::cerr<<"Cannot read catalog\n";return 2;}
- std::ostringstream data;data<<file.rdbuf();
- auto games=ca_mame::compat::MameBridge::parseListXml(data.str());
+ auto games=ca_mame::compat::MameBridge::parseListXml(file);
  auto scan=ca_mame::compat::GameLibrary::scan(games,argv[2]);
  ca_mame::compat::AuditStore audits;
  const auto auditFile=std::filesystem::path(argv[2])/".ca-mame-audits.tsv";
