@@ -16,6 +16,7 @@ add_library(ca_mame_core
     src/compat/MameBridge.cpp
     src/compat/GameLibrary.cpp
     src/compat/AuditStore.cpp
+    src/compat/LibraryIndex.cpp
     src/core/Machine.cpp
     src/core/MachineRegistry.cpp
     src/rom/RomManager.cpp
@@ -48,6 +49,9 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(library-index-tests tests/library_index_tests.cpp)
+    target_link_libraries(library-index-tests PRIVATE ca_mame_core)
+    add_test(NAME library_index_tests COMMAND library-index-tests)
     add_executable(audit-store-tests tests/audit_store_tests.cpp)
     target_link_libraries(audit-store-tests PRIVATE ca_mame_core)
     add_test(NAME audit_store_tests COMMAND audit-store-tests)
