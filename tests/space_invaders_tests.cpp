@@ -16,6 +16,16 @@ int main() {
     expect(board.readPort(3)==0x56,"shift register high/low byte order and offset");
     board.writePort(2,0xff);
     expect(board.readPort(3)==0xd5,"shift offset masks to 3 bits");
+    board.writePort(3,0x05);
+    expect(board.soundPort3()==0x05 && board.soundRisingEdges3()==0x05,"sound port 3 rising edges");
+    expect(board.soundRisingEdges3()==0,"sound port 3 edges clear after consumption");
+    board.writePort(3,0x05);
+    expect(board.soundRisingEdges3()==0,"held sound bits do not retrigger");
+    board.writePort(3,0x00);
+    board.writePort(3,0x04);
+    expect(board.soundRisingEdges3()==0x04,"sound bit retriggers after falling edge");
+    board.writePort(5,0x81);
+    expect(board.soundPort5()==0x81 && board.soundRisingEdges5()==0x81,"sound port 5 rising edges");
     board.setInput(1,0x91);
     expect(board.readPort(1)==0x91,"input port 1");
     std::array<std::uint8_t,2> rom={0x00,0x76};
@@ -50,6 +60,7 @@ int main() {
                  <<" RAM6000="<<unsigned(board.readMemory(0x6000))<<"\n";
     expect(board.runHalfFrame()>=16666,"half-frame cycle budget");
     board.reset();
+    expect(board.soundPort3()==0 && board.soundPort5()==0 && board.soundRisingEdges3()==0 && board.soundRisingEdges5()==0,"reset clears sound latches");
     // With a NOP-filled ROM, every instruction costs four cycles. Absolute
     // 120 Hz deadlines must retain fractional-cycle phase across half-frames.
     for(unsigned frame=1;frame<=120;++frame) {
