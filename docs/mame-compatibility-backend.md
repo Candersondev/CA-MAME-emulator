@@ -22,3 +22,6 @@ In the SDL3 game browser press F5 on the selected game to invoke the installed M
 
 ## Large catalog improvements
 The CLI and SDL3 browser now use an incremental 64-KiB input reader rather than reading the entire `-listxml` file into a string. Regression tests cover 5,000 machines and buffer boundaries. The result still holds all parsed game metadata in memory, and the lightweight parser does not fully implement XML entity decoding, XML namespaces, or complete malformed-XML validation. Large-catalog searching still uses a linear scan and can be optimized further.
+
+## Large catalog indexing
+The CLI and SDL3 browser use incremental XML machine-record extraction instead of loading the entire MAME `-listxml` into one string. The SDL3 browser builds a case-insensitive index once, then filters integer references to catalog entries without copying their metadata. The index searches driver name, description, manufacturer, and year. The incremental parser caps buffered machine data at approximately 1 MiB; unusually large machine elements may be skipped. This is a lightweight extractor rather than a general-purpose validating XML parser.
