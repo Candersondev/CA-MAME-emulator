@@ -1,9 +1,12 @@
 #include "ca_mame/cpu/PowerPC602.hpp"
 namespace ca_mame {
-void PowerPC602::reset(){registers_.fill(0);pc_=0;fault_=false;lr_=cr_=srr0_=0;externalInterrupt_=false;}
+void PowerPC602::reset(){registers_.fill(0);pc_=0;fault_=false;lr_=cr_=srr0_=srr1_=msr_=0;externalInterrupt_=false;}
 std::uint32_t PowerPC602::step(){
     if(fault_)return 0;
-    if(externalInterrupt_){srr0_=pc_;pc_=0x500;externalInterrupt_=false;return 1;} // Prototype exception vector; MSR gating not implemented.
+    if(externalInterrupt_ && (msr_&MSR_EE)){
+        srr0_=pc_;srr1_=msr_;msr_&=~MSR_EE;pc_=0x500;
+        return 1; // Level-sensitive interrupt; board must acknowledge the source.
+    }
     std::uint32_t instruction=0;
     if(!bus_.read32(pc_,instruction)){fault_=true;return 0;}
     const auto currentPC=pc_;
@@ -13,6 +16,12 @@ std::uint32_t PowerPC602::step(){
     const unsigned ra=(instruction>>16)&31;
     const auto immediate=static_cast<std::int16_t>(instruction&0xffff);
     switch(op) {
+        case 19: { // rfi (privilege and full MSR validation pending)
+            if(instruction!=0x4c000064u){fault_=true;break;}
+            pc_=srr0_&~3u;
+            msr_=srr1_;
+            break;
+        }
         case 18: { // b / bl: 24-bit signed displacement shifted left two
             std::int32_t displacement=static_cast<std::int32_t>(instruction&0x03fffffcu);
             if(displacement&0x02000000)displacement|=static_cast<std::int32_t>(0xfc000000u);
