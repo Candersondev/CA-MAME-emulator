@@ -37,6 +37,7 @@ public:
         return true;
     }
     AtapiCdRom& cdRom() noexcept {return cdRom_;}
+    const AtapiCdRom& cdRom() const noexcept {return cdRom_;}
     // Explicit test-only bridge: stage packet response in the existing synthetic
     // BioBus buffer. This is NOT an emulated ATAPI register interface.
     bool stageAtapiPacket(const std::array<std::uint8_t,12>& cdb,std::uint32_t bioAddress,
