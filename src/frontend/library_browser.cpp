@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include "ca_mame/compat/GameLibrary.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
+#include "ca_mame/compat/AuditStore.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -16,6 +17,9 @@ int main(int argc,char** argv){
  std::ostringstream data;data<<file.rdbuf();
  auto games=ca_mame::compat::MameBridge::parseListXml(data.str());
  auto scan=ca_mame::compat::GameLibrary::scan(games,argv[2]);
+ ca_mame::compat::AuditStore audits;
+ const auto auditFile=std::filesystem::path(argv[2])/".ca-mame-audits.tsv";
+ audits.load(auditFile);
  if(!scan.directoryAccessible){std::cerr<<"ROM directory unavailable\n";return 2;}
  if(!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS)){std::cerr<<SDL_GetError()<<"\n";return 1;}
  SDL_Window* window=SDL_CreateWindow("CA-MAME Game Library",1000,700,SDL_WINDOW_RESIZABLE);
@@ -45,6 +49,14 @@ int main(int argc,char** argv){
      case SDLK_UP:if(selected>0)--selected;break;
      case SDLK_PAGEDOWN:selected=std::min(selected+20,filtered.empty()?std::size_t(0):filtered.size()-1);break;
      case SDLK_PAGEUP:selected=selected>20?selected-20:0;break;
+     case SDLK_F5:
+      if(!filtered.empty()){
+       const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],filtered[selected].game.name,std::filesystem::path(argv[2]));
+       if(plan){const int code=ca_mame::compat::MameBridge::launch(*plan);
+        audits.record(filtered[selected].game.name,code);
+        if(!audits.save(auditFile))std::cerr<<"Failed to save audit status\\n";
+        std::cerr<<"MAME ROM verification exit status: "<<code<<"\\n";}
+      }break;
      case SDLK_RETURN:case SDLK_KP_ENTER:
       if(!filtered.empty()){
        const auto plan=ca_mame::compat::MameBridge::plan(argv[3],filtered[selected].game.name,std::filesystem::path(argv[2]));
@@ -65,7 +77,7 @@ int main(int argc,char** argv){
   SDL_RenderDebugText(renderer,18,12,title.c_str());
   const std::string query="Search: "+search+"_";
   SDL_RenderDebugText(renderer,18,32,query.c_str());
-  SDL_RenderDebugText(renderer,18,52,"Type to search | TAB filter | arrows select | ENTER launch | ESC exit");
+  SDL_RenderDebugText(renderer,18,52,"Type to search | TAB filter | arrows select | ENTER launch | F5 verify | ESC exit");
   for(int i=0;i<visible&&offset+static_cast<std::size_t>(i)<filtered.size();++i){
    const auto idx=offset+static_cast<std::size_t>(i);
    const auto& item=filtered[idx];
@@ -74,7 +86,10 @@ int main(int argc,char** argv){
    const bool local=item.localArchive||item.hasChdDirectory;
    if(local)SDL_SetRenderDrawColor(renderer,120,230,160,255);
    else SDL_SetRenderDrawColor(renderer,175,180,190,255);
-   std::string line=(local?"[LOCAL] ":"[-----] ")+item.game.name+" | "+item.game.description+" | "+item.game.year+" | "+item.game.manufacturer;
+   const auto audit=audits.status(item.game.name);
+   const std::string auditLabel=audit==ca_mame::compat::AuditState::Passed?"[PASS] ":
+                                audit==ca_mame::compat::AuditState::Failed?"[FAIL] ":"[????] ";
+   std::string line=auditLabel+(local?"[LOCAL] ":"[-----] ")+item.game.name+" | "+item.game.description+" | "+item.game.year+" | "+item.game.manufacturer;
    const std::size_t maxChars=static_cast<std::size_t>(std::max(10,(w-35)/8));
    if(line.size()>maxChars)line.resize(maxChars);
    SDL_RenderDebugText(renderer,18,y,line.c_str());
