@@ -30,6 +30,7 @@ int main() {
     const std::array<std::uint8_t,3> storeRom={0x32,0x01,0x00};
     expect(board.loadRom(0x100,storeRom),"load ROM store instruction");
     board.cpu().pc=0x100;
+    board.cpu().halted=false;
     board.cpu().step();
     expect(board.readMemory(1)==0x76,"CPU cannot write ROM");
     // STA 6000 must mirror into RAM at 2000.
