@@ -13,5 +13,10 @@ public:
  static std::optional<LaunchPlan> plan(const std::filesystem::path& executable,std::string_view game,
                                      const std::optional<std::filesystem::path>& romPath={});
  static std::vector<Game> parseListXml(std::string_view xml);
+ // Launches a separately installed MAME executable without a command shell.
+ // Returns process exit status, or -1 if process creation fails.
+ static int launch(const LaunchPlan& plan);
+ static std::optional<LaunchPlan> verifyRomsPlan(const std::filesystem::path& executable,
+                 std::string_view game,const std::optional<std::filesystem::path>& romPath={});
 };
 }
