@@ -6,7 +6,7 @@ void Intel8080::reset() {
     z=s=p=cy=ac=false; halted=false; inte_=pending_=false; pendingVector_=0; eiDelay_=0;
 }
 void Intel8080::interrupt(std::uint8_t vector) noexcept {
-    if(inte_ || eiDelay_) { pending_=true; pendingVector_=vector & 7; }
+    if(inte_ && !eiDelay_) { pending_=true; pendingVector_=vector & 7; }
 }
 std::uint16_t Intel8080::pair(int i) const {
     switch(i) { case 0:return (b<<8)|c; case 1:return (d<<8)|e; case 2:return hl(); default:return sp; }
@@ -58,11 +58,14 @@ void Intel8080::setFlags(std::uint8_t f) {
     s=f&0x80;z=f&0x40;ac=f&0x10;p=f&4;cy=f&1;
 }
 std::uint32_t Intel8080::step() {
-    if(eiDelay_) { --eiDelay_; if(eiDelay_==0) inte_=true; }
-    if(pending_ && inte_) {
+    if(pending_ && inte_ && !eiDelay_) {
         pending_=false; inte_=false; halted=false; push(pc); pc=std::uint16_t(pendingVector_*8); return 11;
     }
     if(halted) return 4;
+    // EI takes effect only after one subsequent instruction retires.
+    // The enable countdown is advanced after fetching the next opcode;
+    // interrupts are only acknowledged at the next step boundary.
+    if(eiDelay_) { --eiDelay_; if(eiDelay_==0) inte_=true; }
     auto op=fetch();
     if(op>=0x40 && op<=0x7f) {
         if(op==0x76) { halted=true; return 7; }
@@ -130,7 +133,7 @@ std::uint32_t Intel8080::step() {
         case 0xeb:{auto oldD=d,oldE=e;d=h;e=l;h=oldD;l=oldE;return 5;}
         case 0xf3:inte_=false;eiDelay_=0;return 4;
         case 0xf9:sp=hl();return 5;
-        case 0xfb:eiDelay_=2;return 4;
+        case 0xfb:inte_=false;eiDelay_=2;return 4;
         default:throw std::runtime_error("Unimplemented Intel 8080 opcode");
     }
 }
