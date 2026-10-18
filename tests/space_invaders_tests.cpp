@@ -36,6 +36,7 @@ int main() {
     const std::array<std::uint8_t,3> mirroredStore={0x32,0x00,0x60};
     expect(board.loadRom(0x110,mirroredStore),"load mirrored RAM store instruction");
     board.cpu().pc=0x110;
+    board.cpu().a=0xa5;
     board.cpu().step();
     expect(board.readMemory(0x2000)==0xa5 && board.readMemory(0x6000)==0xa5,"RAM writes mirror across 14-bit address space");
     expect(board.runHalfFrame()>=16666,"half-frame cycle budget");
