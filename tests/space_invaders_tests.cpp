@@ -23,6 +23,21 @@ int main() {
     expect(!board.loadRom(0x2000,rom),"reject ROM outside program region");
     expect(!board.loadRom(0x1fff,rom),"reject ROM crossing ROM boundary");
     expect(board.readMemory(1)==0x76,"ROM contents");
+    expect(board.readMemory(0x4001)==0x76,"ROM mirrors at 0x4000");
+    board.cpu().pc=0x2000;
+    board.cpu().a=0xa5;
+    // STA 0001: CPU must not overwrite the program ROM.
+    const std::array<std::uint8_t,3> storeRom={0x32,0x01,0x00};
+    expect(board.loadRom(0x100,storeRom),"load ROM store instruction");
+    board.cpu().pc=0x100;
+    board.cpu().step();
+    expect(board.readMemory(1)==0x76,"CPU cannot write ROM");
+    // STA 6000 must mirror into RAM at 2000.
+    const std::array<std::uint8_t,3> mirroredStore={0x32,0x00,0x60};
+    expect(board.loadRom(0x110,mirroredStore),"load mirrored RAM store instruction");
+    board.cpu().pc=0x110;
+    board.cpu().step();
+    expect(board.readMemory(0x2000)==0xa5 && board.readMemory(0x6000)==0xa5,"RAM writes mirror across 14-bit address space");
     expect(board.runHalfFrame()>=16666,"half-frame cycle budget");
     board.reset();
     const auto pixels=board.frameBuffer();
