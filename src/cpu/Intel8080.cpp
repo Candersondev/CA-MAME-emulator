@@ -130,7 +130,7 @@ std::uint32_t Intel8080::step() {
         case 0xe3:{auto lo=read(sp),hi=read(std::uint16_t(sp+1));write(sp,l);write(std::uint16_t(sp+1),h);l=lo;h=hi;return 18;}
         case 0xe9:pc=hl();return 5;
         case 0xeb:{auto oldD=d,oldE=e;d=h;e=l;h=oldD;l=oldE;return 5;}
-        case 0xf3:inte_=false;eiDelay_=0;return 4;
+        case 0xf3:inte_=false;eiDelay_=0;pending_=false;return 4;
         case 0xf9:sp=hl();return 5;
         case 0xfb:inte_=false;eiDelay_=2;return 4;
         default:throw std::runtime_error("Unimplemented Intel 8080 opcode");
