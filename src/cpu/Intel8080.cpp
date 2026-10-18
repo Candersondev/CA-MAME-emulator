@@ -62,9 +62,8 @@ std::uint32_t Intel8080::step() {
         pending_=false; inte_=false; halted=false; push(pc); pc=std::uint16_t(pendingVector_*8); return 11;
     }
     if(halted) return 4;
-    // EI takes effect only after one subsequent instruction retires.
-    // The enable countdown is advanced after fetching the next opcode;
-    // interrupts are only acknowledged at the next step boundary.
+    // Advance delayed EI state at instruction boundaries. The next opcode
+    // executes before interrupts can be acknowledged at the following step.
     if(eiDelay_) { --eiDelay_; if(eiDelay_==0) inte_=true; }
     auto op=fetch();
     if(op>=0x40 && op<=0x7f) {
@@ -133,7 +132,7 @@ std::uint32_t Intel8080::step() {
         case 0xeb:{auto oldD=d,oldE=e;d=h;e=l;h=oldD;l=oldE;return 5;}
         case 0xf3:inte_=false;eiDelay_=0;return 4;
         case 0xf9:sp=hl();return 5;
-        case 0xfb:inte_=false;eiDelay_=2;return 4;
+        case 0xfb:inte_=false;eiDelay_=3;return 4;
         default:throw std::runtime_error("Unimplemented Intel 8080 opcode");
     }
 }
