@@ -11,7 +11,7 @@ public:
     std::uint32_t step() override;
     void interrupt(std::uint8_t vector) noexcept;
     void attachIo(IoBus& io) noexcept { io_=&io; }
-    void setInterruptEnabled(bool enabled) noexcept { inte_ = enabled; }
+    void setInterruptEnabled(bool enabled) noexcept { inte_ = enabled; eiDelay_ = 0; }
     std::uint8_t a=0,b=0,c=0,d=0,e=0,h=0,l=0;
     std::uint16_t pc=0,sp=0;
     bool z=false,s=false,p=false,cy=false,ac=false;
