@@ -1,12 +1,13 @@
 #pragma once
 #include <cstdint>
 #include "ca_mame/drivers/M2MemoryMap.hpp"
+#include "ca_mame/drivers/M2CpuBus.hpp"
 #include "ca_mame/cpu/PowerPC602.hpp"
 namespace ca_mame::drivers {
 // Experimental shared-RAM dual-processor harness; NOT a Konami M2 board implementation.
 class KonamiM2 {
 public:
-    KonamiM2():memory_(irq_),cpu0_(memory_),cpu1_(memory_){}
+    KonamiM2():memory_(irq_),bus0_(memory_,0),bus1_(memory_,1),cpu0_(bus0_),cpu1_(bus1_){}
     void reset(){memory_.resetRegisters();irq_.reset();cpu0_.reset();cpu1_.reset();cycles0_=cycles1_=0;}
     static constexpr std::uint32_t resetVector=0xfff00100u;
     void powerOnReset(){reset();cpu0_.setPC(resetVector);cpu1_.setPC(resetVector);cpu0_.setMSR(0x40u);cpu1_.setMSR(0x40u);}
@@ -21,6 +22,7 @@ public:
 private:
     M2InterruptController irq_;
     M2MemoryMap memory_;
+    M2CpuBus bus0_,bus1_;
     PowerPC602 cpu0_,cpu1_;
     std::uint64_t cycles0_=0,cycles1_=0;
 };
