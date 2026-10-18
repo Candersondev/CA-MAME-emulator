@@ -10,12 +10,15 @@ SpaceInvaders::SpaceInvaders() : cpu_(memory_) {
     io_.onRead(3,[this]{return std::uint8_t((shift_>>(8-shiftOffset_))&0xff);});
     io_.onWrite(2,[this](std::uint8_t v){shiftOffset_=v&7;});
     io_.onWrite(4,[this](std::uint8_t v){shift_=std::uint16_t((std::uint16_t(v)<<8)|(shift_>>8));});
+    io_.onWrite(3,[this](std::uint8_t v){sound3Edges_|=std::uint8_t(v&~sound3_);sound3_=v;});
+    io_.onWrite(5,[this](std::uint8_t v){sound5Edges_|=std::uint8_t(v&~sound5_);sound5_=v;});
     reset();
 }
 void SpaceInvaders::reset() {
     memory_.clear();cpu_.reset();
     inputs_={0x0e,0x08,0x00,0x00};
     shift_=0;shiftOffset_=0;cycles_=0;halfFrames_=0;
+    sound3_=sound5_=sound3Edges_=sound5Edges_=0;
 }
 void SpaceInvaders::setInput(std::uint8_t port,std::uint8_t value) {
     if(port<inputs_.size())inputs_[port]=value;
