@@ -3,6 +3,7 @@
 #include "ca_mame/compat/MameBridge.hpp"
 #include "ca_mame/compat/AuditStore.hpp"
 #include "ca_mame/compat/LibraryIndex.hpp"
+#include "ca_mame/compat/LibraryPreferences.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -20,6 +21,9 @@ int main(int argc,char** argv){
  ca_mame::compat::AuditStore audits;
  const auto auditFile=std::filesystem::path(argv[2])/".ca-mame-audits.tsv";
  audits.load(auditFile);
+ ca_mame::compat::LibraryPreferences prefs;
+ const auto prefsFile=std::filesystem::path(argv[2])/".ca-mame-preferences.tsv";
+ prefs.load(prefsFile);
  if(!scan.directoryAccessible){std::cerr<<"ROM directory unavailable\n";return 2;}
  if(!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS)){std::cerr<<SDL_GetError()<<"\n";return 1;}
  SDL_Window* window=SDL_CreateWindow("CA-MAME Game Library",1000,700,SDL_WINDOW_RESIZABLE);
@@ -28,13 +32,15 @@ int main(int argc,char** argv){
  if(!renderer){std::cerr<<SDL_GetError()<<"\n";SDL_DestroyWindow(window);SDL_Quit();return 1;}
  SDL_StartTextInput(window);
  std::string search;
- bool localOnly=true,running=true;
+ bool localOnly=true,running=true,favoritesOnly=false,recentOnly=false;
  std::size_t selected=0,offset=0;
  ca_mame::compat::LibraryIndex index(scan);
  auto filtered=index.find(search,localOnly);
+ auto refine=[&](){filtered.erase(std::remove_if(filtered.begin(),filtered.end(),[&](std::size_t i){const auto& id=scan.entries[i].game.name;return (favoritesOnly&&!prefs.favorite(id))||(recentOnly&&std::find(prefs.recent().begin(),prefs.recent().end(),id)==prefs.recent().end());}),filtered.end());};
+ refine();
  auto refresh=[&](){
   filtered=index.find(search,localOnly);
-  selected=0;offset=0;
+  refine();selected=0;offset=0;
  };
  while(running){
   SDL_Event e;
@@ -46,6 +52,9 @@ int main(int argc,char** argv){
      case SDLK_ESCAPE:running=false;break;
      case SDLK_BACKSPACE:if(!search.empty()){search.pop_back();refresh();}break;
      case SDLK_TAB:localOnly=!localOnly;refresh();break;
+     case SDLK_F:favoritesOnly=!favoritesOnly;recentOnly=false;refresh();break;
+     case SDLK_R:recentOnly=!recentOnly;favoritesOnly=false;refresh();break;
+     case SDLK_SPACE:if(!filtered.empty()){prefs.toggleFavorite(scan.entries[filtered[selected]].game.name);prefs.save(prefsFile);if(favoritesOnly)refresh();}break;
      case SDLK_DOWN:if(selected+1<filtered.size())++selected;break;
      case SDLK_UP:if(selected>0)--selected;break;
      case SDLK_PAGEDOWN:selected=std::min(selected+20,filtered.empty()?std::size_t(0):filtered.size()-1);break;
@@ -61,7 +70,7 @@ int main(int argc,char** argv){
      case SDLK_RETURN:case SDLK_KP_ENTER:
       if(!filtered.empty()){
        const auto plan=ca_mame::compat::MameBridge::plan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
-       if(plan){SDL_HideWindow(window);const int result=ca_mame::compat::MameBridge::launch(*plan);
+       if(plan){prefs.recordLaunch(scan.entries[filtered[selected]].game.name);prefs.save(prefsFile);SDL_HideWindow(window);const int result=ca_mame::compat::MameBridge::launch(*plan);
         std::cerr<<"External MAME exit status: "<<result<<"\n";SDL_ShowWindow(window);}
       }break;
      default:break;
@@ -78,7 +87,7 @@ int main(int argc,char** argv){
   SDL_RenderDebugText(renderer,18,12,title.c_str());
   const std::string query="Search: "+search+"_";
   SDL_RenderDebugText(renderer,18,32,query.c_str());
-  SDL_RenderDebugText(renderer,18,52,"Type to search | TAB filter | arrows select | ENTER launch | F5 verify | ESC exit");
+  SDL_RenderDebugText(renderer,18,52,"Type search | TAB local | F favorites | R recent | SPACE star | ENTER launch | F5 audit");
   for(int i=0;i<visible&&offset+static_cast<std::size_t>(i)<filtered.size();++i){
    const auto idx=offset+static_cast<std::size_t>(i);
    const auto& item=scan.entries[filtered[idx]];
@@ -90,7 +99,7 @@ int main(int argc,char** argv){
    const auto audit=audits.status(item.game.name);
    const std::string auditLabel=audit==ca_mame::compat::AuditState::Passed?"[PASS] ":
                                 audit==ca_mame::compat::AuditState::Failed?"[FAIL] ":"[????] ";
-   std::string line=auditLabel+(local?"[LOCAL] ":"[-----] ")+item.game.name+" | "+item.game.description+" | "+item.game.year+" | "+item.game.manufacturer;
+   std::string line=(prefs.favorite(item.game.name)?"[*] ":"[ ] ")+auditLabel+(local?"[LOCAL] ":"[-----] ")+item.game.name+" | "+item.game.description+" | "+item.game.year+" | "+item.game.manufacturer;
    const std::size_t maxChars=static_cast<std::size_t>(std::max(10,(w-35)/8));
    if(line.size()>maxChars)line.resize(maxChars);
    SDL_RenderDebugText(renderer,18,y,line.c_str());
