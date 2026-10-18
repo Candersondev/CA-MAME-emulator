@@ -1,6 +1,8 @@
 #include "ca_mame/rom/RomManager.hpp"
 #include <fstream>
 #include <array>
+#include <limits>
+#include <zlib.h>
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
@@ -82,12 +84,30 @@ bool RomManager::readZipEntry(const std::filesystem::path& archive,const std::st
         if(total>zip.size()-pos)return false;
         const std::string name(reinterpret_cast<const char*>(zip.data()+pos+46),nameLen);
         if(name==entry) {
-            if(method!=0 || (flags&1) || size!=compressed)return false;
+            if((method!=0 && method!=8) || (flags&1) ||
+               size>64u*1024u*1024u || compressed>64u*1024u*1024u ||
+               size>std::numeric_limits<uInt>::max() || compressed>std::numeric_limits<uInt>::max())return false;
             const auto local=std::size_t(le32(zip,pos+42));
             if(local>zip.size() || zip.size()-local<30 || le32(zip,local)!=0x04034b50u)return false;
             const auto data=local+30u+le16(zip,local+26)+le16(zip,local+28);
             if(data>zip.size() || compressed>zip.size()-data)return false;
-            std::vector<std::uint8_t> loaded(zip.begin()+data,zip.begin()+data+compressed);
+            std::vector<std::uint8_t> loaded;
+            if(method==0) {
+                if(size!=compressed)return false;
+                loaded.assign(zip.begin()+data,zip.begin()+data+compressed);
+            } else {
+                loaded.resize(size);
+                z_stream stream{};
+                stream.next_in=zip.data()+data;
+                stream.avail_in=static_cast<uInt>(compressed);
+                stream.next_out=loaded.data();
+                stream.avail_out=static_cast<uInt>(size);
+                if(inflateInit2(&stream,-MAX_WBITS)!=Z_OK)return false;
+                const int status=inflate(&stream,Z_FINISH);
+                const bool valid=status==Z_STREAM_END && stream.total_out==size && stream.total_in==compressed;
+                inflateEnd(&stream);
+                if(!valid)return false;
+            }
             if(crc32(loaded)!=le32(zip,pos+16))return false;
             bytes=std::move(loaded);
             return true;
