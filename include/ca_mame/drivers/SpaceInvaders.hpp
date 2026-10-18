@@ -21,6 +21,8 @@ public:
     std::uint8_t readPort(std::uint8_t port) const { return io_.read(port); }
     void writePort(std::uint8_t port,std::uint8_t value) { io_.write(port,value); }
     std::uint64_t runHalfFrame();
+    std::uint64_t elapsedCycles() const noexcept { return cycles_; }
+    unsigned elapsedHalfFrames() const noexcept { return halfFrames_; }
     std::array<std::uint32_t,Width*Height> frameBuffer() const;
     Intel8080& cpu() noexcept { return cpu_; }
 private:
