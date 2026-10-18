@@ -9,6 +9,15 @@ int main(){
     assert(bus.write32(Map::ramBase,0x12345678u));
     assert(bus.read32(Map::ramBase,value)&&value==0x12345678u);
     assert(bus.read32(Map::cpuIdBase,value)&&value==0u);
+    assert(bus.read32(Map::memoryControlBase,value)&&value==((5u<<13)|(5u<<10)));
+    assert(bus.write32(Map::memoryControlBase,0x12345000u));
+    assert(bus.read32(Map::memoryControlBase,value)&&value==0x12345000u);
+    assert(bus.write32(Map::memoryControlBase+4,0x00001234u));
+    assert(bus.read32(Map::memoryControlBase+4,value)&&value==0x00001234u);
+    assert(bus.write32(Map::memoryControlBase+8,0xffffffffu));
+    assert(bus.read32(Map::memoryControlBase+8,value)&&value==0u);
+    assert(bus.write32(Map::memoryControlBase+12,0xffffffffu));
+    assert(bus.read32(Map::memoryControlBase+12,value)&&value==0u);
     assert(bus.read32(Map::powerBusBase+0x40,value)&&value==0);
     assert(bus.write32(Map::powerBusBase+0x40,1u<<24));
     bus.raiseHardwareInterrupt(24);
