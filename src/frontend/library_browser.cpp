@@ -26,7 +26,7 @@ int main(int argc,char** argv){
  prefs.load(prefsFile);
  if(!scan.directoryAccessible){std::cerr<<"ROM directory unavailable\n";return 2;}
  if(!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_GAMEPAD)){std::cerr<<SDL_GetError()<<"\n";return 1;}
- SDL_Window* window=SDL_CreateWindow("CA-MAME Game Library",1000,700,SDL_WINDOW_RESIZABLE);
+ SDL_Window* window=SDL_CreateWindow("CA-MAME Game Library",1200,760,SDL_WINDOW_RESIZABLE);
  if(!window){std::cerr<<SDL_GetError()<<"\n";SDL_Quit();return 1;}
  SDL_Renderer* renderer=SDL_CreateRenderer(window,nullptr);
  if(!renderer){std::cerr<<SDL_GetError()<<"\n";SDL_DestroyWindow(window);SDL_Quit();return 1;}
@@ -35,6 +35,9 @@ int main(int argc,char** argv){
  int gamepadCount=0;
  SDL_JoystickID* gamepads=SDL_GetGamepads(&gamepadCount);
  if(gamepads){for(int i=0;i<gamepadCount;++i){gamepad=SDL_OpenGamepad(gamepads[i]);if(gamepad)break;}SDL_free(gamepads);}
+ // Optional BMP artwork: <rom-directory>/artwork/<driver>.bmp
+ SDL_Texture* artwork=nullptr;
+ std::string artworkDriver;
  std::string search;
  bool localOnly=true,running=true,favoritesOnly=false,recentOnly=false;
  std::size_t selected=0,offset=0;
@@ -64,8 +67,8 @@ int main(int argc,char** argv){
    }
    if(e.type==SDL_EVENT_MOUSE_BUTTON_DOWN&&e.button.button==SDL_BUTTON_LEFT){
     int width=0,height=0;SDL_GetWindowSize(window,&width,&height);
-    const int row=static_cast<int>((e.button.y-80.0f)/18.0f);
-    if(e.button.y>=80&&row>=0&&row<std::max(1,(height-90)/18)&&offset+static_cast<std::size_t>(row)<filtered.size())selected=offset+static_cast<std::size_t>(row);
+    const int row=static_cast<int>((e.button.y-100.0f)/20.0f);
+    if(e.button.x<static_cast<float>(std::max(380,width*58/100))&&e.button.y>=100&&row>=0&&row<std::max(1,(height-120)/20)&&offset+static_cast<std::size_t>(row)<filtered.size())selected=offset+static_cast<std::size_t>(row);
    }
    if(e.type==SDL_EVENT_MOUSE_WHEEL){
     if(e.wheel.y>0&&selected>0)--selected;
@@ -102,36 +105,82 @@ int main(int argc,char** argv){
     }
    }
   }
-  int w=1000,h=700;SDL_GetWindowSize(window,&w,&h);
-  const int visible=std::max(1,(h-90)/18);
+  int w=1200,h=760;SDL_GetWindowSize(window,&w,&h);
+  const int listWidth=std::max(380,w*58/100);
+  const int visible=std::max(1,(h-120)/20);
   if(selected<offset)offset=selected;
   if(selected>=offset+static_cast<std::size_t>(visible))offset=selected-visible+1;
-  SDL_SetRenderDrawColor(renderer,15,19,29,255);SDL_RenderClear(renderer);
-  SDL_SetRenderDrawColor(renderer,230,235,244,255);
-  const std::string title="CA-MAME LIBRARY  |  "+std::to_string(filtered.size())+" games  |  "+(localOnly?"LOCAL":"ALL");
-  SDL_RenderDebugText(renderer,18,12,title.c_str());
-  const std::string query="Search: "+search+"_";
-  SDL_RenderDebugText(renderer,18,32,query.c_str());
-  SDL_RenderDebugText(renderer,18,52,"Type search | TAB local | F favorites | R recent | SPACE star | ENTER launch | F5 audit");
+  SDL_SetRenderDrawColor(renderer,14,18,29,255);SDL_RenderClear(renderer);
+  SDL_SetRenderDrawColor(renderer,32,42,62,255);
+  SDL_FRect header{0,0,static_cast<float>(w),88};SDL_RenderFillRect(renderer,&header);
+  SDL_SetRenderDrawColor(renderer,235,241,250,255);
+  const std::string title="CA-MAME ARCADE LIBRARY  /  "+std::to_string(filtered.size())+" games";
+  SDL_RenderDebugText(renderer,16,12,title.c_str());
+  SDL_RenderDebugText(renderer,16,32,("Search: "+search+"_").c_str());
+  SDL_RenderDebugText(renderer,16,52,"TAB local | F favorites | R recent | SPACE star | ENTER/A launch | F5 audit");
+  SDL_RenderDebugText(renderer,16,68,"D-pad/arrows navigate | X favorite | click select | ESC exit");
+  SDL_SetRenderDrawColor(renderer,26,33,48,255);
+  SDL_FRect panel{static_cast<float>(listWidth),90,static_cast<float>(std::max(0,w-listWidth)),static_cast<float>(std::max(0,h-90))};
+  SDL_RenderFillRect(renderer,&panel);
   for(int i=0;i<visible&&offset+static_cast<std::size_t>(i)<filtered.size();++i){
    const auto idx=offset+static_cast<std::size_t>(i);
    const auto& item=scan.entries[filtered[idx]];
-   const float y=80.0f+18.0f*i;
-   if(idx==selected){SDL_SetRenderDrawColor(renderer,48,84,130,255);SDL_FRect r{12,y-2,static_cast<float>(w-24),17};SDL_RenderFillRect(renderer,&r);}
+   const float y=100.0f+20.0f*i;
+   if(idx==selected){SDL_SetRenderDrawColor(renderer,49,89,145,255);SDL_FRect r{8,y-2,static_cast<float>(listWidth-16),19};SDL_RenderFillRect(renderer,&r);}
    const bool local=item.localArchive||item.hasChdDirectory;
-   if(local)SDL_SetRenderDrawColor(renderer,120,230,160,255);
-   else SDL_SetRenderDrawColor(renderer,175,180,190,255);
+   if(local)SDL_SetRenderDrawColor(renderer,130,231,177,255);
+   else SDL_SetRenderDrawColor(renderer,175,185,204,255);
    const auto audit=audits.status(item.game.name);
-   const std::string auditLabel=audit==ca_mame::compat::AuditState::Passed?"[PASS] ":
-                                audit==ca_mame::compat::AuditState::Failed?"[FAIL] ":"[????] ";
-   std::string line=(prefs.favorite(item.game.name)?"[*] ":"[ ] ")+auditLabel+(local?"[LOCAL] ":"[-----] ")+item.game.name+" | "+item.game.description+" | "+item.game.year+" | "+item.game.manufacturer;
-   const std::size_t maxChars=static_cast<std::size_t>(std::max(10,(w-35)/8));
-   if(line.size()>maxChars)line.resize(maxChars);
-   SDL_RenderDebugText(renderer,18,y,line.c_str());
+   const std::string status=audit==ca_mame::compat::AuditState::Passed?"OK":audit==ca_mame::compat::AuditState::Failed?"BAD":"???";
+   std::string line=(prefs.favorite(item.game.name)?"* ":"  ")+item.game.name+" ["+status+"] "+item.game.description;
+   const auto limit=static_cast<std::size_t>(std::max(10,(listWidth-30)/8));
+   if(line.size()>limit)line.resize(limit);
+   SDL_RenderDebugText(renderer,14,y,line.c_str());
   }
+  if(!filtered.empty()){
+   const auto& item=scan.entries[filtered[selected]];
+   if(artworkDriver!=item.game.name){
+    if(artwork){SDL_DestroyTexture(artwork);artwork=nullptr;}
+    artworkDriver=item.game.name;
+    const auto path=std::filesystem::path(argv[2])/"artwork"/(artworkDriver+".bmp");
+    SDL_Surface* surface=SDL_LoadBMP(path.string().c_str());
+    if(surface){artwork=SDL_CreateTextureFromSurface(renderer,surface);SDL_DestroySurface(surface);}
+   }
+   const float x=static_cast<float>(listWidth+18);
+   SDL_SetRenderDrawColor(renderer,245,246,252,255);
+   SDL_RenderDebugText(renderer,x,106,"SELECTED GAME");
+   SDL_RenderDebugText(renderer,x,130,item.game.name.c_str());
+   const float available=static_cast<float>(std::max(80,w-listWidth-36));
+   const auto clip=[&](const std::string& value){
+    const auto limit=static_cast<std::size_t>(std::max(8,static_cast<int>(available)/8));
+    return value.substr(0,limit);
+   };
+   SDL_RenderDebugText(renderer,x,152,clip(item.game.description).c_str());
+   SDL_RenderDebugText(renderer,x,174,clip(item.game.manufacturer+"  |  "+item.game.year).c_str());
+   SDL_RenderDebugText(renderer,x,196,(std::string("ROM files: ")+(item.localArchive||item.hasChdDirectory?"found":"not found")).c_str());
+   const auto audit=audits.status(item.game.name);
+   SDL_RenderDebugText(renderer,x,218,(std::string("Last audit: ")+(audit==ca_mame::compat::AuditState::Passed?"PASS":audit==ca_mame::compat::AuditState::Failed?"FAIL":"UNKNOWN")).c_str());
+   SDL_RenderDebugText(renderer,x,240,(std::string("Favorite: ")+(prefs.favorite(item.game.name)?"YES":"NO")).c_str());
+   SDL_RenderDebugText(renderer,x,262,(std::string("MAME runnable flag: ")+(item.game.runnable?"YES":"NO")).c_str());
+   SDL_FRect artRect{x,294,std::max(1.0f,available),static_cast<float>(std::max(80,h-326))};
+   SDL_SetRenderDrawColor(renderer,19,25,38,255);SDL_RenderFillRect(renderer,&artRect);
+   if(artwork){
+    float tw=0,th=0;
+    if(SDL_GetTextureSize(artwork,&tw,&th)&&tw>0&&th>0){
+     const float scale=std::min(artRect.w/tw,artRect.h/th);
+     SDL_FRect dest{artRect.x+(artRect.w-tw*scale)/2,artRect.y+(artRect.h-th*scale)/2,tw*scale,th*scale};
+     SDL_RenderTexture(renderer,artwork,nullptr,&dest);
+    }
+   }else{
+    SDL_SetRenderDrawColor(renderer,155,167,187,255);
+    SDL_RenderDebugText(renderer,x+12,artRect.y+20,"NO BMP ARTWORK FOUND");
+    SDL_RenderDebugText(renderer,x+12,artRect.y+40,"artwork/<driver>.bmp");
+   }
+  }else if(artwork){SDL_DestroyTexture(artwork);artwork=nullptr;artworkDriver.clear();}
   SDL_RenderPresent(renderer);
   SDL_Delay(16);
  }
+ if(artwork)SDL_DestroyTexture(artwork);
  if(gamepad)SDL_CloseGamepad(gamepad);
  SDL_StopTextInput(window);
  SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
