@@ -177,8 +177,11 @@ int main(int argc,char** argv){
    SDL_RenderDebugText(renderer,x,218,(std::string("Last audit: ")+(audit==ca_mame::compat::AuditState::Passed?"PASS":audit==ca_mame::compat::AuditState::Failed?"FAIL":"UNKNOWN")).c_str());
    SDL_RenderDebugText(renderer,x,240,(std::string("Favorite: ")+(prefs.favorite(item.game.name)?"YES":"NO")).c_str());
    SDL_RenderDebugText(renderer,x,262,(std::string("MAME runnable flag: ")+(item.game.runnable?"YES":"NO")).c_str());
-   SDL_RenderDebugText(renderer,x,282,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
-   SDL_FRect artRect{x,310,std::max(1.0f,available),static_cast<float>(std::max(80,h-342))};
+   SDL_RenderDebugText(renderer,x,282,clip("Hardware driver: "+(item.game.sourceFile.empty()?std::string("unknown"):item.game.sourceFile)).c_str());
+   SDL_RenderDebugText(renderer,x,302,clip("Clone parent: "+(item.game.parent.empty()?std::string("none"):item.game.parent)).c_str());
+   SDL_RenderDebugText(renderer,x,322,clip("ROM/BIOS parent: "+(item.game.bios.empty()?std::string("none"):item.game.bios)).c_str());
+   SDL_RenderDebugText(renderer,x,342,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
+   SDL_FRect artRect{x,370,std::max(1.0f,available),static_cast<float>(std::max(80,h-402))};
    SDL_SetRenderDrawColor(renderer,19,25,38,255);SDL_RenderFillRect(renderer,&artRect);
    if(artwork){
     float tw=0,th=0;
