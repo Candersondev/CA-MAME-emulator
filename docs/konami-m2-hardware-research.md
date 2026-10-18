@@ -70,3 +70,6 @@ The KonamiM2 harness now offers ISO mounting/ejecting, a bounded dual-PowerPC st
 
 ## Boot-trace harness
 `KonamiM2::traceBoot(maxPairs, sampleEvery, maxEntries)` captures bounded sampled instruction addresses from both PowerPC processors and the first fault state. Its regression test uses synthetic instructions and an invalid fetch address. This supports investigation of a user-supplied legal boot ROM but **does not yet load or boot Evil Night**. Full milestone work still needed: hardware-accurate 64-bit ATA CS0 lane decode, real PowerBus IRQ routing, PowerPC instruction coverage, and graphics. The trace has no disk or video state and is not a game compatibility claim.
+
+## Experimental RAM framebuffer capture
+A new `M2FramebufferCapture` utility samples caller-selected, aligned RAM words as big-endian XRGB8888 and returns RGBA8888 bytes with explicit bounds validation. `KonamiM2::captureFramebuffer` exposes this for diagnostics and regression testing. **This is not M2 VDU emulation**: there is no real VDU register interpretation, scanout timing, layers, sprites, texture engine or SDL rendering hookup. The selected pixel format is diagnostic, not verified against Evil Night. This utility does not imply the game displays video or boots.
