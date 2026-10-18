@@ -134,5 +134,30 @@ int main() {
         expect(soak.elapsedHalfFrames()==1200 && soak.elapsedCycles()==20000000,
                "ten emulated seconds finish with exact cycle budget");
     }
+    // Execute a miniature ROM that reads real board inputs, writes video
+    // RAM, and triggers a sound port through 8080 IN/OUT instructions.
+    {
+        ca_mame::drivers::SpaceInvaders gameplay;
+        const std::array<std::uint8_t,11> program={
+            0xdb,0x01,       // IN 1: read coin/start/fire/left/right
+            0x32,0x00,0x24,  // STA 2400: update video RAM
+            0xd3,0x03,       // OUT 3: sound control
+            0xc3,0x00,0x00,  // JMP 0000
+            0x00
+        };
+        expect(gameplay.loadRom(0,program),"load input-video-sound integration ROM");
+        gameplay.setInput(1,0x11); // coin and fire
+        gameplay.runHalfFrame();
+        expect(gameplay.readMemory(0x2400)==0x11,"ROM reads input and writes video RAM");
+        expect(gameplay.soundPort3()==0x11,"ROM drives sound control via OUT");
+        expect(gameplay.soundRisingEdges3()==0x11,"ROM-generated sound events captured");
+        const auto rendered=gameplay.frameBuffer();
+        expect(rendered[255*224]==0xffffffffu && rendered[251*224]==0xffffffffu,
+               "input-driven ROM updates expected video pixels");
+        gameplay.setInput(1,0x02); // second player start
+        gameplay.runHalfFrame();
+        expect(gameplay.readMemory(0x2400)==0x02 && gameplay.soundPort3()==0x02,
+               "ROM responds to changing input during execution");
+    }
     return failures?1:0;
 }
