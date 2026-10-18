@@ -11,7 +11,7 @@ public:
     static constexpr std::uint32_t base=0x3f000000u;
     static constexpr std::uint32_t size=0x01000000u;
     explicit M2AtapiTaskfile(AtapiCdRom& cd) noexcept:cd_(cd){}
-    void reset() noexcept {status_=0x40;error_=0;features_=0;byteCount_=0;packetBytes_=0;dataIndex_=0;response_.clear();irq_=false;}
+    void reset() noexcept {status_=0x40;error_=0;features_=0;byteCount_=0;packetBytes_=0;dataIndex_=0;response_.clear();awaitingPacket_=false;irq_=false;}
     bool interruptAsserted() const noexcept{return irq_;}
     bool read32(std::uint32_t offset,std::uint32_t& value) noexcept {
         switch(offset){
