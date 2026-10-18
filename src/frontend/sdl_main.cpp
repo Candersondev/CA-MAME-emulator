@@ -79,6 +79,12 @@ int main(int argc,char** argv) {
     if(audio) SDL_ResumeAudioStreamDevice(audio);
     else std::cerr<<"Audio unavailable: "<<SDL_GetError()<<"\n";
     double audioPhase=0.0;
+    std::array<double,8> effectPhase{};
+    std::array<int,8> effectSamples{};
+    std::uint32_t noiseState=0x12345678u;
+    constexpr double tau=6.283185307179586;
+    constexpr int sampleRate=44100;
+    constexpr int frameSamples=735;
     bool running=true;
     auto next=std::chrono::steady_clock::now();
     while(running) {
@@ -92,16 +98,49 @@ int main(int argc,char** argv) {
         updateInputs(board);
         board.runHalfFrame();
         board.runHalfFrame();
+        // Ports 3/5: one-shot sound triggers, with port 3 bit 0 as
+        // the continuously running UFO oscillator. These are intentionally
+        // synthesized approximations, not samples of the original hardware.
+        const auto edges3=board.soundRisingEdges3();
+        const auto edges5=board.soundRisingEdges5();
+        const std::array<std::uint8_t,8> triggers3={0,0x02,0x04,0x08,0x10,0,0,0};
+        const std::array<std::uint8_t,8> triggers5={0x01,0x02,0x04,0x08,0x10,0,0,0};
+        for(int i=0;i<4;++i) {
+            if(edges3&triggers3[i+1]) {effectSamples[i]=sampleRate*(i==0?1:2)/10;effectPhase[i]=0;}
+        }
+        for(int i=0;i<4;++i) {
+            if(edges5&triggers5[i]) {effectSamples[i+4]=sampleRate/9;effectPhase[i+4]=0;}
+        }
         if(audio) {
-            std::array<float,735> samples{};
-            const bool ufo=(board.soundPort3()&1)!=0;
-            for(auto& sample:samples) {
-                sample=ufo?static_cast<float>(0.12*std::sin(audioPhase)):0.0f;
-                audioPhase+=6.283185307179586*110.0/44100.0;
-                if(audioPhase>=6.283185307179586)audioPhase-=6.283185307179586;
+            // Never let the queued audio grow without bound when rendering
+            // falls behind or the playback device stalls.
+            constexpr int maxQueuedBytes=sampleRate*int(sizeof(float))/5;
+            if(SDL_GetAudioStreamQueued(audio)<maxQueuedBytes) {
+                std::array<float,frameSamples> samples{};
+                const bool ufo=(board.soundPort3()&1)!=0;
+                for(auto& sample:samples) {
+                    double mixed=ufo?0.10*std::sin(audioPhase):0.0;
+                    audioPhase+=tau*110.0/sampleRate;
+                    if(audioPhase>=tau)audioPhase-=tau;
+                    for(int i=0;i<8;++i) {
+                        if(effectSamples[i]<=0)continue;
+                        const double duration=sampleRate*(i<4?(i==0?0.1:0.2):(1.0/9.0));
+                        const double envelope=std::min(1.0,double(effectSamples[i])/duration);
+                        const double freq=i<4?(i==0?880.0:(i==1?160.0:95.0)):(140.0+60.0*(i-4));
+                        noiseState^=noiseState<<13;
+                        noiseState^=noiseState>>17;
+                        noiseState^=noiseState<<5;
+                        const double noise=(noiseState&65535u)/32767.5-1.0;
+                        mixed+=0.10*envelope*(i==1||i==2?noise:std::sin(effectPhase[i]));
+                        effectPhase[i]+=tau*freq/sampleRate;
+                        if(effectPhase[i]>=tau)effectPhase[i]-=tau;
+                        --effectSamples[i];
+                    }
+                    sample=static_cast<float>(std::clamp(mixed,-1.0,1.0));
+                }
+                if(!SDL_PutAudioStreamData(audio,samples.data(),static_cast<int>(samples.size()*sizeof(float))))
+                    std::cerr<<"SDL audio queue: "<<SDL_GetError()<<"\\n";
             }
-            if(!SDL_PutAudioStreamData(audio,samples.data(),static_cast<int>(samples.size()*sizeof(float))))
-                std::cerr<<"SDL audio queue: "<<SDL_GetError()<<"\n";
         }
         const auto pixels=board.frameBuffer();
         if(!SDL_UpdateTexture(texture,nullptr,pixels.data(),static_cast<int>(Board::Width*sizeof(std::uint32_t)))) {
