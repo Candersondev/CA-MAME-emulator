@@ -47,6 +47,30 @@ std::uint32_t PowerPC602::step(){
             }
             break;
         }
+        case 12: // addic RT,RA,SIMM (carry flag not yet modeled)
+            registers_[rt]=registers_[ra]+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            break;
+        case 13: // addic. (CR0 updates not yet modeled)
+            registers_[rt]=registers_[ra]+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            break;
+        case 10: { // cmpli (32-bit unsigned)
+            if(instruction&0x00200000u){unsupported();break;}
+            const unsigned field=(instruction>>23)&7;
+            const auto lhs=registers_[ra],rhs=instruction&0xffffu;
+            const std::uint32_t flags=lhs<rhs?8u:(lhs>rhs?4u:2u);
+            const unsigned shift=28-4*field;
+            cr_=(cr_&~(0xfu<<shift))|(flags<<shift);
+            break;
+        }
+        case 28: // andi. RS,RA,UIMM (CR0 pending)
+            registers_[ra]=registers_[rt]&(instruction&0xffffu);
+            break;
+        case 26: // xori
+            registers_[ra]=registers_[rt]^(instruction&0xffffu);
+            break;
+        case 25: // oris
+            registers_[ra]=registers_[rt]|((instruction&0xffffu)<<16);
+            break;
         case 19: { // rfi (privilege and full MSR validation pending)
             if(instruction==0x4e800020u){pc_=lr_&~3u;break;} // blr
             if(instruction!=0x4c000064u){unsupported();break;}
@@ -64,9 +88,10 @@ std::uint32_t PowerPC602::step(){
         case 16: { // bc: BO and CR bit selection (CTR-dependent modes not implemented)
             const unsigned bo=(instruction>>21)&31;
             const unsigned bi=(instruction>>16)&31;
-            if(!(bo&4u)){unsupported();break;} // requires CTR handling
+            bool ctrOk=true;
+            if(!(bo&4u)){--ctr_;ctrOk=((ctr_!=0)==((bo&2u)==0));}
             const bool bit=((cr_>>(31-bi))&1u)!=0;
-            if((bo&16u) || bit==((bo&8u)!=0)) {
+            if(ctrOk && ((bo&16u) || bit==((bo&8u)!=0))) {
                 std::int32_t displacement=static_cast<std::int16_t>(instruction&0xfffcu);
                 pc_=(instruction&2u)?static_cast<std::uint32_t>(displacement):currentPC+static_cast<std::uint32_t>(displacement);
             }
@@ -92,6 +117,21 @@ std::uint32_t PowerPC602::step(){
         case 24: // ori RA,RS,UIMM (canonical PPC nop is ori r0,r0,0)
             registers_[ra]=registers_[rt]|(instruction&0xffff);
             break;
+        case 33: { // lwzu: base register updated only on successful read
+            if(ra==0 || ra==rt){unsupported();break;}
+            const auto address=registers_[ra]+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            std::uint32_t value=0;
+            if(!bus_.read32(address,value)){dataFault(address);break;}
+            registers_[rt]=value;registers_[ra]=address;
+            break;
+        }
+        case 37: { // stwu
+            if(ra==0){unsupported();break;}
+            const auto address=registers_[ra]+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            if(!bus_.write32(address,registers_[rt])){dataFault(address);break;}
+            registers_[ra]=address;
+            break;
+        }
         case 32: { // lwz RT,D(RA)
             const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
             if(!bus_.read32(address,registers_[rt]))dataFault(address);
