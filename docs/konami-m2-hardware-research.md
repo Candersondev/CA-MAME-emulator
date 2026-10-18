@@ -43,3 +43,6 @@ CA-MAME currently models only a tiny PowerPC instruction subset. The M2 memory m
 - Temporary compatibility aliases for legacy unit tests at low RAM and `0x11000000` prototype IRQ are **not hardware mappings** and must be removed after test migration.
 
 Sources: https://github.com/mamedev/mame/blob/master/src/mame/konami/3dom2.h and https://github.com/mamedev/mame/blob/master/src/mame/konami/3dom2.cpp .
+
+## Memory-controller implementation (initial)
+MAME `m2_memctl_device` registers at `0x00020000`: MCONFIG (+0x0), MREF (+0x4), MCNTL (+0x8), MRESET (+0xC). Two 8 MiB banks encode as SS0=5 and SS1=5, use the expression `(5 << 13) | (5 << 10)` as authoritative. MCONFIG/MREF are read/write. MCNTL/MRESET are acknowledged no-op writes and zero reads, following the current MAME stubs, **not real reset behavior**. MREF GPIO external callbacks are not implemented. RAM backing remains fixed-size regardless of MCONFIG writes.
