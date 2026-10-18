@@ -29,6 +29,8 @@ bool SpaceInvaders::loadRom(std::uint16_t address,std::span<const std::uint8_t> 
 std::uint64_t SpaceInvaders::runHalfFrame() {
     // Alternating RST 1 / RST 2 at nominal 120 Hz, with 2 MHz CPU.
     // CPU instructions can cross the boundary; overshoot is retained.
+    // Use an absolute rational deadline to avoid accumulating fractional
+    // 2 MHz / 120 Hz truncation error over long emulation sessions.
     const auto target=std::uint64_t(++halfFrames_)*CpuHz/120;
     const auto before=cycles_;
     while(cycles_<target)cycles_+=cpu_.step();
