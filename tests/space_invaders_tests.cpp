@@ -39,7 +39,12 @@ int main() {
     board.cpu().pc=0x110;
     board.cpu().a=0xa5;
     board.cpu().step();
-    expect(board.readMemory(0x2000)==0xa5 && board.readMemory(0x6000)==0xa5,"RAM writes mirror across 14-bit address space");
+    expect(board.readMemory(0x2000)==0xa5,"STA writes mapped RAM at 0x2000");
+    expect(board.readMemory(0x6000)==0xa5,"RAM mirrors at 0x6000");
+    if(board.readMemory(0x2000)!=0xa5 || board.readMemory(0x6000)!=0xa5)
+        std::cerr<<"Diagnostic: PC="<<std::hex<<board.cpu().pc<<" A="<<unsigned(board.cpu().a)
+                 <<" RAM2000="<<unsigned(board.readMemory(0x2000))
+                 <<" RAM6000="<<unsigned(board.readMemory(0x6000))<<"\n";
     expect(board.runHalfFrame()>=16666,"half-frame cycle budget");
     board.reset();
     const auto pixels=board.frameBuffer();
