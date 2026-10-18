@@ -117,6 +117,34 @@ std::uint32_t PowerPC602::step(){
         case 24: // ori RA,RS,UIMM (canonical PPC nop is ori r0,r0,0)
             registers_[ra]=registers_[rt]|(instruction&0xffff);
             break;
+        case 34: { // lbz
+            const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            std::uint8_t value=0;
+            if(!bus_.read8(address,value))dataFault(address);else registers_[rt]=value;
+            break;
+        }
+        case 40: { // lhz
+            const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            std::uint16_t value=0;
+            if(!bus_.read16(address,value))dataFault(address);else registers_[rt]=value;
+            break;
+        }
+        case 42: { // lha
+            const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            std::uint16_t value=0;
+            if(!bus_.read16(address,value))dataFault(address);else registers_[rt]=static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int16_t>(value)));
+            break;
+        }
+        case 38: { // stb
+            const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            if(!bus_.write8(address,static_cast<std::uint8_t>(registers_[rt])))dataFault(address);
+            break;
+        }
+        case 44: { // sth
+            const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
+            if(!bus_.write16(address,static_cast<std::uint16_t>(registers_[rt])))dataFault(address);
+            break;
+        }
         case 33: { // lwzu: base register updated only on successful read
             if(ra==0 || ra==rt){unsupported();break;}
             const auto address=registers_[ra]+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
