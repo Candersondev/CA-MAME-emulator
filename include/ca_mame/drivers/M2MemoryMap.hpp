@@ -33,7 +33,7 @@ public:
         }
         return true;
     }
-    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;}
+    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;}
     void raiseHardwareInterrupt(unsigned line) noexcept {if(line<32)powerBusStatus_|=(1u<<line);}
     bool hardwareInterruptAsserted() const noexcept{return (powerBusStatus_&powerBusEnable_)!=0;}
     // Loads a word into ROM storage, bypassing guest read-only protection.
@@ -41,6 +41,9 @@ public:
     bool read32(std::uint32_t address,std::uint32_t& value) const noexcept {
         if(address>=ramBase && address<ramBase+ramSize)return ram_.read32(address-ramBase,value);
         if(address<ramSize && (address<0x10000u || address>=0x100000u))return ram_.read32(address,value); // legacy test harness alias
+        if(address==memoryControlBase){value=memoryConfig_;return true;}
+        if(address==memoryControlBase+4){value=memoryRefresh_;return true;}
+        if(address==memoryControlBase+8 || address==memoryControlBase+12){value=0;return true;} // MAME currently stubs reads
         if(address==cpuIdBase){value=0;return true;} // CPU0; CPU1 requires per-CPU view
         if(address==powerBusBase+0x40){value=powerBusEnable_;return true;}
         if(address==powerBusBase+0x50){value=powerBusStatus_;return true;}
@@ -54,6 +57,9 @@ public:
     bool write32(std::uint32_t address,std::uint32_t value) noexcept {
         if(address>=ramBase && address<ramBase+ramSize)return ram_.write32(address-ramBase,value);
         if(address<ramSize && (address<0x10000u || address>=0x100000u))return ram_.write32(address,value); // legacy test harness alias
+        if(address==memoryControlBase){memoryConfig_=value;return true;}
+        if(address==memoryControlBase+4){memoryRefresh_=value;return true;}
+        if(address==memoryControlBase+8 || address==memoryControlBase+12)return true; // MAME currently ignores writes
         if(address==powerBusBase+0x40){powerBusEnable_|=value;return true;}
         if(address==powerBusBase+0x440){powerBusEnable_&=~value;return true;}
         if(address==powerBusBase+0x60){if(value==1)powerBusStatus_|=1u;return true;}
@@ -67,5 +73,7 @@ private:
     BigEndianBus ram_,bootRom_;
     M2InterruptController& irq_;
     std::uint32_t powerBusEnable_=0,powerBusStatus_=0;
+    // Two 8 MiB banks: SS1=5 at bit 13, SS0=5 at bit 10.
+    std::uint32_t memoryConfig_=(5u<<13)|(5u<<10),memoryRefresh_=0;
 };
 }
