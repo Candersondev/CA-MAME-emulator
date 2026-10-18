@@ -34,5 +34,21 @@ int main() {
     cpu.step();check(!cpu.interruptsEnabled(),"EI delayed immediately");
     cpu.step();check(!cpu.interruptsEnabled(),"EI delayed through following instruction");
     cpu.step();check(cpu.interruptsEnabled(),"EI enabled after following instruction");
+    // A disabled interrupt must not be queued or wake HALT.
+    cpu.reset();bus.write(0,0x76);cpu.sp=0x3000;
+    check(cpu.step()==7 && cpu.halted,"HLT enters halted state");
+    cpu.interrupt(1);
+    check(cpu.step()==4 && cpu.halted && cpu.pc==1,"masked interrupt does not wake HALT");
+    // An accepted RST 1 wakes HALT, pushes the return address and consumes 11 cycles.
+    cpu.setInterruptEnabled(true);cpu.interrupt(1);
+    check(cpu.step()==11 && !cpu.halted && cpu.pc==8,"RST 1 wakes HALT with 11 cycles");
+    check(cpu.sp==0x2ffe && bus.read(0x2ffe)==1 && bus.read(0x2fff)==0,"RST 1 pushes correct return address");
+    check(!cpu.interruptsEnabled(),"interrupt acknowledgment disables INTE");
+    // No second interrupt is accepted until software explicitly re-enables INTE.
+    cpu.interrupt(2);
+    check(cpu.step()==4 && cpu.pc==9,"RST 2 is masked after RST 1 acknowledgment");
+    cpu.setInterruptEnabled(true);cpu.interrupt(2);
+    check(cpu.step()==11 && cpu.pc==16 && cpu.sp==0x2ffc,"RST 2 vector and stack timing");
+    check(bus.read(0x2ffc)==9 && bus.read(0x2ffd)==0,"RST 2 pushes interrupted PC");
     return failures?1:0;
 }
