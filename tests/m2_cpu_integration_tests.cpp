@@ -13,13 +13,18 @@ int main(){
     std::uint32_t mask=0;
     assert(board.readWord(irq+4,mask) && mask==4);
     board.interrupts().raise(2);
+    board.cpu(0).setMSR(ca_mame::PowerPC602::MSR_EE);
     board.stepPair();
     assert(board.cpu(0).pc()==0x500 && board.cpu(0).srr0()==12);
+    assert(board.cpu(0).srr1()==ca_mame::PowerPC602::MSR_EE);
+    assert((board.cpu(0).msr()&ca_mame::PowerPC602::MSR_EE)==0);
     assert(board.cpu(1).pc()==0x110);
-    assert(board.loadWord(0x500,0x60000000));
+    assert(board.loadWord(0x500,0x4c000064)); // rfi
+    board.interrupts().clear(2);
     assert(board.loadWord(0x110,0x60000000));
     board.stepPair();
-    assert(board.cpu(0).pc()==0x504);
+    assert(board.cpu(0).pc()==12);
+    assert(board.cpu(0).msr()==ca_mame::PowerPC602::MSR_EE);
     assert(board.cpu(1).pc()==0x114);
     board.reset();
     assert(!board.interrupts().asserted(0));
