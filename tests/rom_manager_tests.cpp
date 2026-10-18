@@ -12,6 +12,8 @@ int main() {
     using namespace ca_mame::rom;
     const std::vector<std::uint8_t> standard={'1','2','3','4','5','6','7','8','9'};
     check(RomManager::crc32(standard)==0xcbf43926u,"CRC32 standard vector");
+    check(RomManager::sha1(standard)=="f7c3bc1d808e04732adf679965ccc34ca7ae3441","SHA-1 standard vector");
+    check(RomManager::sha1({})=="da39a3ee5e6b4b0d3255bfef95601890afd80709","SHA-1 empty vector");
     check(RomManager::crc32({})==0u,"CRC32 empty vector");
     const auto dir=std::filesystem::temp_directory_path()/"ca_mame_rom_audit_test";
     std::filesystem::create_directories(dir);
@@ -24,6 +26,8 @@ int main() {
     check(result.ok && result.actualSize==9 && result.actualCrc32==0xcbf43926u,"valid ROM audit");
     check(!RomManager::audit(dir,{"sample.bin",8,0,false}).ok,"reject wrong size");
     check(!RomManager::audit(dir,{"sample.bin",9,0,true}).ok,"reject wrong CRC");
+    check(RomManager::audit(dir,{"sample.bin",9,0,false,"f7c3bc1d808e04732adf679965ccc34ca7ae3441",true}).ok,"valid SHA-1 audit");
+    check(!RomManager::audit(dir,{"sample.bin",9,0,false,"0000000000000000000000000000000000000000",true}).ok,"reject wrong SHA-1");
     check(!RomManager::audit(dir,{"missing.bin",9,0,false}).ok,"reject missing ROM");
     check(!RomManager::audit(dir,{"../sample.bin",9,0,false}).ok,"reject path traversal");
     std::vector<std::uint8_t> loaded;
