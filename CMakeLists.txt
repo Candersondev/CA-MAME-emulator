@@ -20,7 +20,7 @@ add_library(ca_mame_core
     src/cpu/Intel8080.cpp
     src/drivers/SpaceInvaders.cpp
 )
-target_link_libraries(ca_mame_core PRIVATE ZLIB::ZLIB)
+target_link_libraries(ca_mame_core PUBLIC ZLIB::ZLIB)
 target_include_directories(ca_mame_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(MSVC)
     target_compile_options(ca_mame_core PRIVATE /W4)
