@@ -16,7 +16,11 @@ public:
     bool faulted() const noexcept{return fault_;}
     void setExternalInterrupt(bool asserted) noexcept {externalInterrupt_=asserted;}
     bool externalInterrupt() const noexcept{return externalInterrupt_;}
+    static constexpr std::uint32_t MSR_EE=0x00008000u;
+    std::uint32_t msr() const noexcept{return msr_;}
+    void setMSR(std::uint32_t value) noexcept{msr_=value;}
     std::uint32_t srr0() const noexcept{return srr0_;}
+    std::uint32_t srr1() const noexcept{return srr1_;}
     std::uint32_t lr() const noexcept{return lr_;}
     std::uint32_t cr() const noexcept{return cr_;}
 private:
@@ -25,7 +29,7 @@ private:
     std::uint32_t pc_=0;
     bool fault_=false;
     std::uint32_t lr_=0,cr_=0;
-    std::uint32_t srr0_=0;
+    std::uint32_t srr0_=0,srr1_=0,msr_=0;
     bool externalInterrupt_=false;
 };
 }
