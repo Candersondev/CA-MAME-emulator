@@ -18,6 +18,7 @@ add_library(ca_mame_core
     src/rom/RomManager.cpp
     src/bus/MemoryBus.cpp
     src/cpu/Intel8080.cpp
+    src/cpu/PowerPC602.cpp
     src/drivers/SpaceInvaders.cpp
 )
 target_link_libraries(ca_mame_core PUBLIC ZLIB::ZLIB)
@@ -54,6 +55,9 @@ if(BUILD_TESTING)
     add_executable(light-gun-tests tests/light_gun_tests.cpp)
     target_link_libraries(light-gun-tests PRIVATE ca_mame_core)
     add_test(NAME light_gun_tests COMMAND light-gun-tests)
+    add_executable(powerpc602-tests tests/powerpc602_tests.cpp)
+    target_link_libraries(powerpc602-tests PRIVATE ca_mame_core)
+    add_test(NAME powerpc602_tests COMMAND powerpc602-tests)
     add_executable(intel8080-tests tests/intel8080_tests.cpp)
     target_link_libraries(intel8080-tests PRIVATE ca_mame_core)
     add_test(NAME intel8080_tests COMMAND intel8080-tests)
