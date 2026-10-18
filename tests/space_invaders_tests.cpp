@@ -73,7 +73,7 @@ int main() {
     }
     expect(board.elapsedCycles()==ca_mame::drivers::SpaceInvaders::CpuHz,"120 half-frames consume exactly one second of NOP cycles");
     board.reset();
-    const auto pixels=board.frameBuffer();
+    static const auto pixels=board.frameBuffer();
     expect(pixels.size()==224*256,"video dimensions");
     expect(pixels[0]==0xff000000u,"blank video RAM renders black");
     const std::array<std::uint8_t,3> videoStore={0x32,0x00,0x24};
@@ -81,7 +81,7 @@ int main() {
     board.cpu().pc=0x100;
     board.cpu().a=0x81;
     board.cpu().step();
-    const auto video=board.frameBuffer();
+    static const auto video=board.frameBuffer();
     expect(video[255*224]==0xffffffffu,"video bit 0 maps to lower-left pixel");
     expect(video[248*224]==0xffffffffu,"video bit 7 maps to eighth pixel");
     expect(video[254*224]==0xff000000u,"unset video bits remain black");
@@ -151,7 +151,7 @@ int main() {
         expect(gameplay.readMemory(0x2400)==0x11,"ROM reads input and writes video RAM");
         expect(gameplay.soundPort3()==0x11,"ROM drives sound control via OUT");
         expect(gameplay.soundRisingEdges3()==0x11,"ROM-generated sound events captured");
-        const auto rendered=gameplay.frameBuffer();
+        static const auto rendered=gameplay.frameBuffer();
         expect(rendered[255*224]==0xffffffffu && rendered[251*224]==0xffffffffu,
                "input-driven ROM updates expected video pixels");
         gameplay.setInput(1,0x02); // second player start
