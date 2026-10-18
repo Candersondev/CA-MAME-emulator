@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(ca_mame_core
     src/core/Machine.cpp
     src/bus/MemoryBus.cpp
+    src/cpu/Intel8080.cpp
 )
 target_include_directories(ca_mame_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(MSVC)
