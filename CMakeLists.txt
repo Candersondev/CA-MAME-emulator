@@ -13,6 +13,7 @@ if(NOT ZLIB_FOUND)
     add_library(ZLIB::ZLIB ALIAS zlibstatic)
 endif()
 add_library(ca_mame_core
+    src/compat/MameBridge.cpp
     src/core/Machine.cpp
     src/core/MachineRegistry.cpp
     src/rom/RomManager.cpp
@@ -43,6 +44,9 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(mame-bridge-tests tests/mame_bridge_tests.cpp)
+    target_link_libraries(mame-bridge-tests PRIVATE ca_mame_core)
+    add_test(NAME mame_bridge_tests COMMAND mame-bridge-tests)
     add_executable(ca-mame-tests tests/core_tests.cpp)
     target_link_libraries(ca-mame-tests PRIVATE ca_mame_core)
     add_test(NAME core_tests COMMAND ca-mame-tests)
