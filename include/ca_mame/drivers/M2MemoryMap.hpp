@@ -13,6 +13,7 @@ namespace ca_mame::drivers {
 // Prototype register layout for unit tests ONLY; real M2 addresses are not established.
 class M2MemoryMap final : public WordBus {
 public:
+    static constexpr std::uint32_t konamiAtapiControlBase=0x37600000u;
     static constexpr std::uint32_t ramBase=0x40000000;
     static constexpr std::uint32_t powerBusBase=0x00010000;
     static constexpr std::uint32_t memoryControlBase=0x00020000;
@@ -36,6 +37,7 @@ public:
         }
         return true;
     }
+    std::uint16_t atapiControl() const noexcept {return atapiControl_;}
     AtapiCdRom& cdRom() noexcept {return cdRom_;}
     const AtapiCdRom& cdRom() const noexcept {return cdRom_;}
     // Explicit test-only bridge: stage packet response in the existing synthetic
@@ -52,7 +54,7 @@ public:
         responseSize=response.size();
         return true;
     }
-    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();taskfile_.reset();}
+    void resetRegisters() noexcept {atapiControl_=0x8000u;powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();taskfile_.reset();}
     bool loadBioByte(std::uint32_t address,std::uint8_t value) noexcept {return cde_.loadBioByte(address,value);}
     bool readBioByte(std::uint32_t address,std::uint8_t& value) const noexcept {return cde_.readBioByte(address,value);}
     void raiseHardwareInterrupt(unsigned line) noexcept {if(line<32)powerBusStatus_|=(1u<<line);}
@@ -78,6 +80,15 @@ public:
         return false;
     }
     bool write32(std::uint32_t address,std::uint32_t value) noexcept {
+        // Konami-specific 16-bit control at the high halfword of a 64-bit bus lane.
+        // Upstream MAME identifies bit 15 as active-low ATAPI reset; bit 14 DMA
+        // remains unimplemented there, so it is retained for diagnostics only.
+        if(address==konamiAtapiControlBase){
+            const auto control=static_cast<std::uint16_t>(value>>16);
+            if((atapiControl_&0x8000u) && !(control&0x8000u))taskfile_.reset();
+            atapiControl_=control;
+            return true;
+        }
         if(address>=M2AtapiTaskfile::base && address<M2AtapiTaskfile::base+M2AtapiTaskfile::size)return taskfile_.write32(address-M2AtapiTaskfile::base,value);
         if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size){
             const auto offset=address-M2Cde::base;
@@ -128,6 +139,7 @@ private:
     AtapiCdRom cdRom_;
     mutable M2AtapiTaskfile taskfile_;
     M2InterruptController& irq_;
+    std::uint16_t atapiControl_=0x8000u;
     std::uint32_t powerBusEnable_=0,powerBusStatus_=0;
     // Two 8 MiB banks: SS1=5 at bit 13, SS0=5 at bit 10.
     std::uint32_t memoryConfig_=(5u<<13)|(5u<<10),memoryRefresh_=0;
