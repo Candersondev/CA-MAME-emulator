@@ -125,7 +125,7 @@ private:
     BigEndianBus ram_,bootRom_;
     M2Cde cde_;
     AtapiCdRom cdRom_;
-    M2AtapiTaskfile taskfile_;
+    mutable M2AtapiTaskfile taskfile_;
     M2InterruptController& irq_;
     std::uint32_t powerBusEnable_=0,powerBusStatus_=0;
     // Two 8 MiB banks: SS1=5 at bit 13, SS0=5 at bit 10.
