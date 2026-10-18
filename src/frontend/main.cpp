@@ -5,7 +5,26 @@
 #include "ca_mame/drivers/KonamiM2.hpp"
 #include <string_view>
 #include "ca_mame/core/MachineRegistry.hpp"
+#include "ca_mame/compat/MameBridge.hpp"
+#include <fstream>
+#include <sstream>
 int main(int argc,char** argv) {
+    if(argc>=3 && std::string_view(argv[1])=="--mame-catalog"){
+        std::ifstream input(argv[2],std::ios::binary);
+        if(!input){std::cerr<<"Unable to open MAME XML catalog\\n";return 2;}
+        std::ostringstream buffer;buffer<<input.rdbuf();
+        const auto games=ca_mame::compat::MameBridge::parseListXml(buffer.str());
+        for(const auto& game:games)std::cout<<game.name<<" | "<<game.description<<" | "<<game.year<<" | "<<(game.runnable?"runnable flag":"not runnable")<<"\\n";
+        std::cout<<"Catalog entries: "<<games.size()<<" (metadata only)\\n";return 0;
+    }
+    if(argc>=4 && std::string_view(argv[1])=="--mame-plan"){
+        const auto plan=ca_mame::compat::MameBridge::plan(argv[2],argv[3],argc>=5?std::optional<std::filesystem::path>(argv[4]):std::nullopt);
+        if(!plan){std::cerr<<"Invalid MAME launch plan\\n";return 2;}
+        std::cout<<"Executable: "<<plan->executable.string()<<"\\n";
+        for(const auto& arg:plan->arguments)std::cout<<"Argument: "<<arg<<"\\n";
+        std::cout<<"Dry run only; no external process launched\\n";return 0;
+    }
+
     if(argc>=3 && std::string_view(argv[1])=="--m2-trace"){
         ca_mame::drivers::KonamiM2 board;
         if(!board.loadBootRom(argv[2])){
