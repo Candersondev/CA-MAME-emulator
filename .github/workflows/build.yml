@@ -77,13 +77,18 @@ jobs:
           $exe = Get-ChildItem -Path build-sdl -Recurse -Filter ca-mame-sdl.exe | Where-Object { $_.FullName -notmatch 'CMakeFiles' } | Select-Object -First 1
           if (-not $exe) { throw 'ca-mame-sdl.exe not found' }
           Copy-Item $exe.FullName dist/CA-MAME-Windows/
+          $gun = Get-ChildItem -Path build-sdl -Recurse -Filter ca-mame-gun-test.exe | Where-Object { $_.FullName -notmatch 'CMakeFiles' } | Select-Object -First 1
+          if (-not $gun) { throw 'ca-mame-gun-test.exe not found' }
+          Copy-Item $gun.FullName dist/CA-MAME-Windows/
           $dll = Get-ChildItem -Path sdl-install -Recurse -Filter SDL3.dll | Select-Object -First 1
           if (-not $dll) { throw 'SDL3.dll not found' }
           Copy-Item $dll.FullName dist/CA-MAME-Windows/
           @'
-          CA-MAME Space Invaders - Windows
+          CA-MAME Arcade Emulator - Windows
           =================================
-          Place legally obtained invaders.h, invaders.g, invaders.f, invaders.e ROMs in this folder.
+          To test mouse aiming without ROMs, run ca-mame-gun-test.exe.
+          Left click = fire, right click = reload, Escape = quit.
+          To launch Space Invaders, place legally obtained invaders.h, invaders.g, invaders.f, invaders.e ROMs in this folder.
           Run from a terminal:
             .\\ca-mame-sdl.exe invaders.h invaders.g invaders.f invaders.e
           C = coin, 1/2 = start, arrows = move, Space = fire, Esc = quit.
