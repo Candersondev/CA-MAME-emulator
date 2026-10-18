@@ -15,6 +15,8 @@ public:
     bool interruptAsserted() const noexcept{return irq_ && !interruptDisabled_;}
     void setInterruptDisabled(bool disabled) noexcept {interruptDisabled_=disabled;}
     bool interruptPending() const noexcept {return irq_;}
+    // ATA alternate status is a non-acknowledging status sample.
+    std::uint8_t alternateStatus() const noexcept {return status_;}
     std::uint8_t status() const noexcept{return status_;}
     std::uint8_t error() const noexcept{return error_;}
     std::size_t pendingBytes() const noexcept{return response_.size()-dataIndex_;}
