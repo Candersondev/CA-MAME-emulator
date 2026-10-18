@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <istream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@ public:
  static std::optional<LaunchPlan> plan(const std::filesystem::path& executable,std::string_view game,
                                      const std::optional<std::filesystem::path>& romPath={});
  static std::vector<Game> parseListXml(std::string_view xml);
+ static std::vector<Game> parseListXml(std::istream& input);
  // Launches a separately installed MAME executable without a command shell.
  // Returns process exit status, or -1 if process creation fails.
  static int launch(const LaunchPlan& plan);
