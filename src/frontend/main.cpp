@@ -13,8 +13,7 @@ int main(int argc,char** argv) {
     if(argc>=4 && std::string_view(argv[1])=="--mame-library"){
         std::ifstream input(argv[2],std::ios::binary);
         if(!input){std::cerr<<"Unable to open MAME XML catalog\n";return 2;}
-        std::ostringstream buffer;buffer<<input.rdbuf();
-        const auto games=ca_mame::compat::MameBridge::parseListXml(buffer.str());
+        const auto games=ca_mame::compat::MameBridge::parseListXml(input);
         const auto scan=ca_mame::compat::GameLibrary::scan(games,argv[3]);
         if(!scan.directoryAccessible){std::cerr<<"ROM directory is not accessible\n";return 2;}
         const bool localOnly=argc>=5 && std::string_view(argv[4])=="--local";
