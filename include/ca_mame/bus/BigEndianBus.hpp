@@ -1,9 +1,10 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include "ca_mame/bus/WordBus.hpp"
 #include <vector>
 namespace ca_mame {
-class BigEndianBus {
+class BigEndianBus final : public WordBus {
 public:
     explicit BigEndianBus(std::size_t size):memory_(size,0){}
     std::size_t size() const noexcept{return memory_.size();}
