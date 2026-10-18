@@ -7,6 +7,7 @@
 #include "ca_mame/bus/BigEndianBus.hpp"
 #include "ca_mame/drivers/M2InterruptController.hpp"
 #include "ca_mame/drivers/M2Cde.hpp"
+#include "ca_mame/drivers/AtapiCdRom.hpp"
 namespace ca_mame::drivers {
 // Prototype register layout for unit tests ONLY; real M2 addresses are not established.
 class M2MemoryMap final : public WordBus {
@@ -32,6 +33,21 @@ public:
                              (std::uint32_t(bytes[2])<<8)|bytes[3];
             if(!bootRom_.write32(offset,value))return false;
         }
+        return true;
+    }
+    AtapiCdRom& cdRom() noexcept {return cdRom_;}
+    // Explicit test-only bridge: stage packet response in the existing synthetic
+    // BioBus buffer. This is NOT an emulated ATAPI register interface.
+    bool stageAtapiPacket(const std::array<std::uint8_t,12>& cdb,std::uint32_t bioAddress,
+                          std::size_t& responseSize) {
+        std::vector<std::uint8_t> response;
+        responseSize=0;
+        if(!cdRom_.packet(cdb,response))return false;
+        if(bioAddress<0x20000000u || bioAddress>=0x20010000u ||
+           response.size()>0x10000u-(bioAddress-0x20000000u))return false;
+        for(std::size_t i=0;i<response.size();++i)
+            if(!cde_.loadBioByte(bioAddress+static_cast<std::uint32_t>(i),response[i]))return false;
+        responseSize=response.size();
         return true;
     }
     void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();}
@@ -105,6 +121,7 @@ public:
 private:
     BigEndianBus ram_,bootRom_;
     M2Cde cde_;
+    AtapiCdRom cdRom_;
     M2InterruptController& irq_;
     std::uint32_t powerBusEnable_=0,powerBusStatus_=0;
     // Two 8 MiB banks: SS1=5 at bit 13, SS0=5 at bit 10.
