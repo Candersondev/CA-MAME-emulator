@@ -54,13 +54,13 @@ int main(int argc,char** argv){
       if(!filtered.empty()){
        const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
        if(plan){const int code=ca_mame::compat::MameBridge::launch(*plan);
-        audits.record(filtered[selected].game.name,code);
+        audits.record(scan.entries[filtered[selected]].game.name,code);
         if(!audits.save(auditFile))std::cerr<<"Failed to save audit status\\n";
         std::cerr<<"MAME ROM verification exit status: "<<code<<"\\n";}
       }break;
      case SDLK_RETURN:case SDLK_KP_ENTER:
       if(!filtered.empty()){
-       const auto plan=ca_mame::compat::MameBridge::plan(argv[3],filtered[selected].game.name,std::filesystem::path(argv[2]));
+       const auto plan=ca_mame::compat::MameBridge::plan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
        if(plan){SDL_HideWindow(window);const int result=ca_mame::compat::MameBridge::launch(*plan);
         std::cerr<<"External MAME exit status: "<<result<<"\n";SDL_ShowWindow(window);}
       }break;
