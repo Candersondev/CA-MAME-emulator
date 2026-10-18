@@ -25,3 +25,6 @@ The CLI and SDL3 browser now use an incremental 64-KiB input reader rather than 
 
 ## Large catalog indexing
 The CLI and SDL3 browser use incremental XML machine-record extraction instead of loading the entire MAME `-listxml` into one string. The SDL3 browser builds a case-insensitive index once, then filters integer references to catalog entries without copying their metadata. The index searches driver name, description, manufacturer, and year. The incremental parser caps buffered machine data at approximately 1 MiB; unusually large machine elements may be skipped. This is a lightweight extractor rather than a general-purpose validating XML parser.
+
+## Browser favorites, recent games and controller
+The SDL3 browser persists favorites and a 30-entry recent-launch list in `.ca-mame-preferences.tsv` inside the ROM directory. Space toggles the selected favorite; F filters favorites; R filters recently launched games; Tab toggles local-only. Controller D-pad up/down selects games, South/A launches external MAME, West/X toggles favorites. Left mouse click selects a row and mouse wheel moves selection. The interface still uses SDL3's built-in debug text and has no artwork decoding or thumbnail support yet. Controller availability and interactive behavior require testing on actual hardware.
