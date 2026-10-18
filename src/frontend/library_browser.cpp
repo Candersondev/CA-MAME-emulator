@@ -25,12 +25,16 @@ int main(int argc,char** argv){
  const auto prefsFile=std::filesystem::path(argv[2])/".ca-mame-preferences.tsv";
  prefs.load(prefsFile);
  if(!scan.directoryAccessible){std::cerr<<"ROM directory unavailable\n";return 2;}
- if(!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS)){std::cerr<<SDL_GetError()<<"\n";return 1;}
+ if(!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_GAMEPAD)){std::cerr<<SDL_GetError()<<"\n";return 1;}
  SDL_Window* window=SDL_CreateWindow("CA-MAME Game Library",1000,700,SDL_WINDOW_RESIZABLE);
  if(!window){std::cerr<<SDL_GetError()<<"\n";SDL_Quit();return 1;}
  SDL_Renderer* renderer=SDL_CreateRenderer(window,nullptr);
  if(!renderer){std::cerr<<SDL_GetError()<<"\n";SDL_DestroyWindow(window);SDL_Quit();return 1;}
  SDL_StartTextInput(window);
+ SDL_Gamepad* gamepad=nullptr;
+ int gamepadCount=0;
+ SDL_JoystickID* gamepads=SDL_GetGamepads(&gamepadCount);
+ if(gamepads){for(int i=0;i<gamepadCount;++i){gamepad=SDL_OpenGamepad(gamepads[i]);if(gamepad)break;}SDL_free(gamepads);}
  std::string search;
  bool localOnly=true,running=true,favoritesOnly=false,recentOnly=false;
  std::size_t selected=0,offset=0;
@@ -46,6 +50,27 @@ int main(int argc,char** argv){
   SDL_Event e;
   while(SDL_PollEvent(&e)){
    if(e.type==SDL_EVENT_QUIT)running=false;
+   if(e.type==SDL_EVENT_GAMEPAD_ADDED&&!gamepad)gamepad=SDL_OpenGamepad(e.gdevice.which);
+   if(e.type==SDL_EVENT_GAMEPAD_REMOVED&&gamepad&&SDL_GetGamepadID(gamepad)==e.gdevice.which){SDL_CloseGamepad(gamepad);gamepad=nullptr;}
+   if(e.type==SDL_EVENT_GAMEPAD_BUTTON_DOWN){
+    if(e.gbutton.button==SDL_GAMEPAD_BUTTON_DPAD_DOWN&&selected+1<filtered.size())++selected;
+    if(e.gbutton.button==SDL_GAMEPAD_BUTTON_DPAD_UP&&selected>0)--selected;
+    if(e.gbutton.button==SDL_GAMEPAD_BUTTON_SOUTH&&!filtered.empty()){
+     const auto& name=scan.entries[filtered[selected]].game.name;
+     const auto plan=ca_mame::compat::MameBridge::plan(argv[3],name,std::filesystem::path(argv[2]));
+     if(plan){prefs.recordLaunch(name);prefs.save(prefsFile);SDL_HideWindow(window);ca_mame::compat::MameBridge::launch(*plan);SDL_ShowWindow(window);}
+    }
+    if(e.gbutton.button==SDL_GAMEPAD_BUTTON_WEST&&!filtered.empty()){prefs.toggleFavorite(scan.entries[filtered[selected]].game.name);prefs.save(prefsFile);if(favoritesOnly)refresh();}
+   }
+   if(e.type==SDL_EVENT_MOUSE_BUTTON_DOWN&&e.button.button==SDL_BUTTON_LEFT){
+    int width=0,height=0;SDL_GetWindowSize(window,&width,&height);
+    const int row=static_cast<int>((e.button.y-80.0f)/18.0f);
+    if(e.button.y>=80&&row>=0&&row<std::max(1,(height-90)/18)&&offset+static_cast<std::size_t>(row)<filtered.size())selected=offset+static_cast<std::size_t>(row);
+   }
+   if(e.type==SDL_EVENT_MOUSE_WHEEL){
+    if(e.wheel.y>0&&selected>0)--selected;
+    if(e.wheel.y<0&&selected+1<filtered.size())++selected;
+   }
    if(e.type==SDL_EVENT_TEXT_INPUT){search+=e.text.text;refresh();}
    if(e.type==SDL_EVENT_KEY_DOWN){
     switch(e.key.key){
@@ -107,6 +132,7 @@ int main(int argc,char** argv){
   SDL_RenderPresent(renderer);
   SDL_Delay(16);
  }
+ if(gamepad)SDL_CloseGamepad(gamepad);
  SDL_StopTextInput(window);
  SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
  return 0;
