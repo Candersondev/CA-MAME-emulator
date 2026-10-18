@@ -16,7 +16,7 @@ bool loadFile(Board& board,const std::string& path,std::uint16_t address) {
     std::ifstream in(path,std::ios::binary|std::ios::ate);
     if(!in) { std::cerr<<"Cannot open ROM: "<<path<<"\n";return false; }
     const auto length=in.tellg();
-    if(length<0 || length>8192) {std::cerr<<"Invalid ROM size: "<<path<<"\n";return false;}
+    if(length!=2048) {std::cerr<<"Expected 2048-byte ROM: "<<path<<"\n";return false;}
     std::vector<std::uint8_t> bytes(static_cast<std::size_t>(length));
     in.seekg(0);
     if(!in.read(reinterpret_cast<char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()))) {
