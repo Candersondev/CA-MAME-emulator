@@ -80,12 +80,35 @@ jobs:
           $gun = Get-ChildItem -Path build-sdl -Recurse -Filter ca-mame-gun-test.exe | Where-Object { $_.FullName -notmatch 'CMakeFiles' } | Select-Object -First 1
           if (-not $gun) { throw 'ca-mame-gun-test.exe not found' }
           Copy-Item $gun.FullName dist/CA-MAME-Windows/
+          $library = Get-ChildItem -Path build-sdl -Recurse -Filter ca-mame-library.exe | Where-Object { $_.FullName -notmatch 'CMakeFiles' } | Select-Object -First 1
+          if (-not $library) { throw 'ca-mame-library.exe not found' }
+          Copy-Item $library.FullName dist/CA-MAME-Windows/
+          Copy-Item packaging/windows/Start-CA-MAME.ps1 dist/CA-MAME-Windows/
+          @'
+          @echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-CA-MAME.ps1" %*
+          pause
+          '@ | Set-Content -Path dist/CA-MAME-Windows/Start-CA-MAME.cmd
+          foreach ($category in @('snap','titles','cabinets')) {
+            $folder = "dist/CA-MAME-Windows/roms/artwork/$category"
+            New-Item -ItemType Directory -Force -Path $folder | Out-Null
+            'Place your own artwork here.' | Set-Content -Path "$folder/README.txt"
+          }
+          $imageDll = Get-ChildItem -Path build-sdl -Recurse -Filter SDL3_image.dll | Where-Object { $_.FullName -notmatch 'CMakeFiles' } | Select-Object -First 1
+          if (-not $imageDll) { throw 'SDL3_image.dll not found' }
+          Copy-Item $imageDll.FullName dist/CA-MAME-Windows/
           $dll = Get-ChildItem -Path sdl-install -Recurse -Filter SDL3.dll | Select-Object -First 1
           if (-not $dll) { throw 'SDL3.dll not found' }
           Copy-Item $dll.FullName dist/CA-MAME-Windows/
           @'
           CA-MAME Arcade Emulator - Windows
           =================================
+          Run Start-CA-MAME.cmd to open the game library.
+          Install MAME separately and place mame.exe alongside this launcher, or
+          pass -MameExecutable "C:\path\to\mame.exe" to Start-CA-MAME.ps1.
+          The launcher creates catalog.xml using MAME -listxml on first run.
+          Add legally obtained game archives to the roms directory.
+          The game library launches games through external MAME.
           To test mouse aiming without ROMs, run ca-mame-gun-test.exe.
           Left click = fire, right click = reload, Escape = quit.
           To launch Space Invaders, place legally obtained invaders.h, invaders.g, invaders.f, invaders.e ROMs in this folder.
