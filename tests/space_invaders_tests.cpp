@@ -115,5 +115,24 @@ int main() {
         expect(irqBoard.cpu().sp==0x23fe && irqBoard.readMemory(0x23fe)==1,
                "RST 2 pushes HALT return address");
     }
+    // Ten seconds of deterministic ROM execution, without distributing
+    // copyrighted game ROMs. JMP 0000 loops forever and costs 10 cycles.
+    {
+        ca_mame::drivers::SpaceInvaders soak;
+        const std::array<std::uint8_t,3> loop={0xc3,0x00,0x00};
+        expect(soak.loadRom(0,loop),"load synthetic long-running ROM");
+        for(unsigned frame=1;frame<=1200;++frame) {
+            soak.runHalfFrame();
+            if(frame%120==0) {
+                const auto deadline=std::uint64_t(frame)*ca_mame::drivers::SpaceInvaders::CpuHz/120;
+                expect(soak.elapsedCycles()>=deadline && soak.elapsedCycles()<deadline+10,
+                       "ten-second ROM execution maintains bounded cycle overshoot");
+                expect(soak.cpu().pc==0 && !soak.cpu().halted,
+                       "synthetic ROM continues executing without HALT");
+            }
+        }
+        expect(soak.elapsedHalfFrames()==1200 && soak.elapsedCycles()==20000000,
+               "ten emulated seconds finish with exact cycle budget");
+    }
     return failures?1:0;
 }
