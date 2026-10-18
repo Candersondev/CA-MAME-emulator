@@ -1,6 +1,15 @@
 #include "ca_mame/compat/MameBridge.hpp"
 #include <algorithm>
 #include <cctype>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <cerrno>
+#endif
 namespace ca_mame::compat {
 bool MameBridge::validDriverName(std::string_view name) noexcept {
  return !name.empty() && name.size()<=64 && std::all_of(name.begin(),name.end(),[](unsigned char c){
@@ -48,4 +57,49 @@ std::vector<Game> MameBridge::parseListXml(std::string_view xml){
  }
  return result;
 }
+std::optional<LaunchPlan> MameBridge::verifyRomsPlan(const std::filesystem::path& executable,
+ std::string_view game,const std::optional<std::filesystem::path>& romPath){
+ auto p=plan(executable,game,romPath);
+ if(!p)return std::nullopt;
+ p->arguments.insert(p->arguments.begin(),"-verifyroms");
+ return p;
+}
+int MameBridge::launch(const LaunchPlan& p){
+ if(p.executable.empty())return -1;
+#ifdef _WIN32
+ auto quote=[](const std::wstring& a){
+  std::wstring out=L"\"";std::size_t slashes=0;
+  for(wchar_t c:a){
+   if(c==L'\\'){++slashes;continue;}
+   if(c==L'"'){out.append(slashes*2+1,L'\\');out+=L'"';slashes=0;continue;}
+   out.append(slashes,L'\\');slashes=0;out+=c;
+  }
+  out.append(slashes*2,L'\\');out+=L'"';return out;
+ };
+ std::wstring cmd=quote(p.executable.wstring());
+ for(const auto& a:p.arguments){cmd+=L" ";cmd+=quote(std::filesystem::path(a).wstring());}
+ std::vector<wchar_t> mutableCommand(cmd.begin(),cmd.end());mutableCommand.push_back(0);
+ STARTUPINFOW startup{};startup.cb=sizeof(startup);PROCESS_INFORMATION process{};
+ const auto exe=p.executable.wstring();
+ if(!CreateProcessW(exe.c_str(),mutableCommand.data(),nullptr,nullptr,FALSE,0,nullptr,nullptr,&startup,&process))return -1;
+ WaitForSingleObject(process.hProcess,INFINITE);
+ DWORD exitCode=0;const bool ok=GetExitCodeProcess(process.hProcess,&exitCode)!=0;
+ CloseHandle(process.hThread);CloseHandle(process.hProcess);
+ return ok?static_cast<int>(exitCode):-1;
+#else
+ std::vector<std::string> strings;strings.reserve(p.arguments.size()+1);
+ strings.push_back(p.executable.string());
+ strings.insert(strings.end(),p.arguments.begin(),p.arguments.end());
+ std::vector<char*> argv;argv.reserve(strings.size()+1);
+ for(auto& str:strings)argv.push_back(str.data());
+ argv.push_back(nullptr);
+ const pid_t pid=fork();
+ if(pid<0)return -1;
+ if(pid==0){execvp(argv[0],argv.data());_exit(127);}
+ int status=0;
+ while(waitpid(pid,&status,0)<0){if(errno!=EINTR)return -1;}
+ return WIFEXITED(status)?WEXITSTATUS(status):-1;
+#endif
+}
+
 }
