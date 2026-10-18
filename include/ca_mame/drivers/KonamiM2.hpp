@@ -18,6 +18,25 @@ public:
     bool loadWord(std::uint32_t address,std::uint32_t value){return memory_.write32(address,value);}
     bool readWord(std::uint32_t address,std::uint32_t& value)const{return memory_.read32(address,value);}
     void stepPair(){cpu0_.setExternalInterrupt(irq_.asserted(0)||memory_.hardwareInterruptAsserted());cpu1_.setExternalInterrupt(irq_.asserted(1)||memory_.hardwareInterruptAsserted());cycles0_+=cpu0_.step();cycles1_+=cpu1_.step();}
+    struct CpuSnapshot {
+        std::uint32_t pc=0,faultAddress=0,faultInstruction=0;
+        PowerPC602::StopReason reason=PowerPC602::StopReason::None;
+        std::uint64_t cycles=0;
+        bool faulted=false,externalInterrupt=false;
+    };
+    CpuSnapshot snapshot(unsigned index) const noexcept {
+        const auto& c=index==0?cpu0_:cpu1_;
+        return {c.pc(),c.faultAddress(),c.faultInstruction(),c.stopReason(),
+                index==0?cycles0_:cycles1_,c.faulted(),c.externalInterrupt()};
+    }
+    // Stop as soon as either CPU reports an unsupported instruction or bus fault.
+    std::uint64_t runUntilFault(std::uint64_t maxPairs) {
+        std::uint64_t completed=0;
+        while(completed<maxPairs && !cpu0_.faulted() && !cpu1_.faulted()){
+            stepPair();++completed;
+        }
+        return completed;
+    }
     void raiseHardwareInterrupt(unsigned line) noexcept {memory_.raiseHardwareInterrupt(line);}
     M2InterruptController& interrupts() noexcept{return irq_;}
     PowerPC602& cpu(unsigned index){return index==0?cpu0_:cpu1_;}
