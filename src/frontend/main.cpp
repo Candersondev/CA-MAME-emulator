@@ -27,7 +27,14 @@ int main(int argc,char** argv) {
             if(!board.readWord(address,opcode)){std::cout<<"Unmapped fetch at 0x"<<std::hex<<address<<"\n";break;}
             std::cout<<std::dec<<i<<" PC=0x"<<std::hex<<std::setw(8)<<std::setfill('0')<<address
                      <<" opcode=0x"<<std::setw(8)<<opcode<<std::dec<<"\n";
-            if(cpu.step()==0){std::cout<<"Stopped: unsupported instruction or bus fault\n";break;}
+            if(cpu.step()==0){
+                const auto reason=cpu.stopReason();
+                const char* label=reason==ca_mame::PowerPC602::StopReason::InstructionFetch?"instruction fetch":
+                    reason==ca_mame::PowerPC602::StopReason::DataAccess?"data access":
+                    reason==ca_mame::PowerPC602::StopReason::UnsupportedInstruction?"unsupported opcode":"unknown";
+                std::cout<<"Stopped: "<<label<<" at 0x"<<std::hex<<cpu.faultAddress()
+                         <<" opcode=0x"<<cpu.faultInstruction()<<std::dec<<"\n";break;
+            }
         }
         return 0;
     }
