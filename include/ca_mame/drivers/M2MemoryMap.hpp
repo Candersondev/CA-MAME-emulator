@@ -1,5 +1,8 @@
 #pragma once
 #include <cstdint>
+#include <array>
+#include <fstream>
+#include <string>
 #include "ca_mame/bus/WordBus.hpp"
 #include "ca_mame/bus/BigEndianBus.hpp"
 #include "ca_mame/drivers/M2InterruptController.hpp"
@@ -8,12 +11,25 @@ namespace ca_mame::drivers {
 class M2MemoryMap final : public WordBus {
 public:
     static constexpr std::uint32_t ramBase=0x00000000;
-    static constexpr std::uint32_t ramSize=1024*1024;
+    static constexpr std::uint32_t ramSize=16*1024*1024; // Provisional contiguous 2x8 MiB backing; physical decode unverified.
     static constexpr std::uint32_t prototypeIrqBase=0x10000000;
     static constexpr std::uint32_t bootRomBase=0x20000000;
     static constexpr std::uint32_t bootRomSize=0x200000;
     static constexpr std::uint32_t bootRomMirrorBase=0xfff00000;
     explicit M2MemoryMap(M2InterruptController& irq):ram_(ramSize),bootRom_(bootRomSize),irq_(irq){}
+    bool loadBootRom(const std::string& path) {
+        std::ifstream file(path,std::ios::binary|std::ios::ate);
+        if(!file || file.tellg()!=static_cast<std::streamoff>(bootRomSize))return false;
+        file.seekg(0);
+        std::array<unsigned char,4> bytes{};
+        for(std::uint32_t offset=0;offset<bootRomSize;offset+=4){
+            if(!file.read(reinterpret_cast<char*>(bytes.data()),4))return false;
+            const auto value=(std::uint32_t(bytes[0])<<24)|(std::uint32_t(bytes[1])<<16)|
+                             (std::uint32_t(bytes[2])<<8)|bytes[3];
+            if(!bootRom_.write32(offset,value))return false;
+        }
+        return true;
+    }
     // Loads a word into ROM storage, bypassing guest read-only protection.
     bool loadBootWord(std::uint32_t offset,std::uint32_t value) noexcept{return bootRom_.write32(offset,value);}
     bool read32(std::uint32_t address,std::uint32_t& value) const noexcept {
