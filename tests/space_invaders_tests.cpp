@@ -50,6 +50,18 @@ int main() {
                  <<" RAM6000="<<unsigned(board.readMemory(0x6000))<<"\n";
     expect(board.runHalfFrame()>=16666,"half-frame cycle budget");
     board.reset();
+    // With a NOP-filled ROM, every instruction costs four cycles. Absolute
+    // 120 Hz deadlines must retain fractional-cycle phase across half-frames.
+    for(unsigned frame=1;frame<=120;++frame) {
+        const auto prior=board.elapsedCycles();
+        const auto executed=board.runHalfFrame();
+        const auto deadline=std::uint64_t(frame)*ca_mame::drivers::SpaceInvaders::CpuHz/120;
+        expect(board.elapsedHalfFrames()==frame,"half-frame counter increments once");
+        expect(executed==board.elapsedCycles()-prior,"half-frame cycles match elapsed cycles");
+        expect(board.elapsedCycles()>=deadline && board.elapsedCycles()<deadline+4,"half-frame timing stays within one NOP");
+    }
+    expect(board.elapsedCycles()==ca_mame::drivers::SpaceInvaders::CpuHz,"120 half-frames consume exactly one second of NOP cycles");
+    board.reset();
     const auto pixels=board.frameBuffer();
     expect(pixels.size()==224*256,"video dimensions");
     expect(pixels[0]==0xff000000u,"blank video RAM renders black");
