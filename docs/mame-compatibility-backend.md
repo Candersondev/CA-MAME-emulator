@@ -19,3 +19,6 @@ When built with `CA_MAME_ENABLE_SDL3=ON`, the `ca-mame-library` executable offer
 
 ## Persistent ROM audit status
 In the SDL3 game browser press F5 on the selected game to invoke the installed MAME executable with `-verifyroms`. CA-MAME records PASS for exit code zero and FAIL for a nonzero exit code, in `.ca-mame-audits.tsv` inside the ROM directory; unknown entries display `[????]`. This is the last recorded MAME process result, not a live check. It does not parse detailed audit messages, detect changed ROM files, or confirm actual gameplay. The ROM directory must be writable to save status.
+
+## Large catalog improvements
+The CLI and SDL3 browser now use an incremental 64-KiB input reader rather than reading the entire `-listxml` file into a string. Regression tests cover 5,000 machines and buffer boundaries. The result still holds all parsed game metadata in memory, and the lightweight parser does not fully implement XML entity decoding, XML namespaces, or complete malformed-XML validation. Large-catalog searching still uses a linear scan and can be optimized further.
