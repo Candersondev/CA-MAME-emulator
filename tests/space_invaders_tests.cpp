@@ -65,5 +65,14 @@ int main() {
     const auto pixels=board.frameBuffer();
     expect(pixels.size()==224*256,"video dimensions");
     expect(pixels[0]==0xff000000u,"blank video RAM renders black");
+    const std::array<std::uint8_t,3> videoStore={0x32,0x00,0x24};
+    expect(board.loadRom(0x100,videoStore),"load video RAM store instruction");
+    board.cpu().pc=0x100;
+    board.cpu().a=0x81;
+    board.cpu().step();
+    const auto video=board.frameBuffer();
+    expect(video[255*224]==0xffffffffu,"video bit 0 maps to lower-left pixel");
+    expect(video[248*224]==0xffffffffu,"video bit 7 maps to eighth pixel");
+    expect(video[254*224]==0xff000000u,"unset video bits remain black");
     return failures?1:0;
 }
