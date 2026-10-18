@@ -3,17 +3,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include "ca_mame/core/IMachine.hpp"
 #include "ca_mame/bus/MemoryBus.hpp"
 #include "ca_mame/bus/IoBus.hpp"
 #include "ca_mame/cpu/Intel8080.hpp"
 namespace ca_mame::drivers {
 // Space Invaders board model. Sound events are latched; audio synthesis and watchdog remain TODO.
-class SpaceInvaders {
+class SpaceInvaders final : public IMachine {
 public:
     static constexpr std::size_t Width=224, Height=256;
     static constexpr std::uint32_t CpuHz=2000000;
     SpaceInvaders();
-    void reset();
+    std::string_view driverId() const noexcept override { return "invaders"; }
+    void reset() override;
+    std::uint64_t runFrame() override { return runHalfFrame()+runHalfFrame(); }
     void setInput(std::uint8_t port,std::uint8_t value);
     bool loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes);
     std::uint8_t readMemory(std::uint16_t address) const { return memory_.read(address); }
