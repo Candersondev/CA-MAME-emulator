@@ -6,7 +6,12 @@ int main(){
     std::uint32_t value=0;
     assert(memory.write32(0,0x12345678));
     assert(memory.read32(0,value)&&value==0x12345678);
-    assert(!memory.read32(0x20000000,value));
+    assert(memory.loadBootWord(0,0x3860002a));
+    assert(memory.read32(memory.bootRomBase,value) && value==0x3860002a);
+    assert(memory.read32(memory.bootRomMirrorBase,value) && value==0x3860002a);
+    assert(!memory.write32(memory.bootRomBase,0));
+    assert(!memory.write32(memory.bootRomMirrorBase,0));
+    assert(!memory.read32(0x30000000,value));
     assert(!memory.write32(1,0));
     irq.raise(3);
     assert(memory.read32(ca_mame::drivers::M2MemoryMap::prototypeIrqBase,value)&&value==8);
