@@ -19,5 +19,13 @@ int main(){
     cpu.setPC(16);
     assert(cpu.step()==0 && cpu.faulted());
     cpu.reset();
+    assert(bus.write32(0x40,0x60000000));
+    cpu.setPC(0x40);
+    cpu.setExternalInterrupt(true);
+    assert(cpu.step()==1 && cpu.pc()==0x44); // EE=0: interrupt masked
+    cpu.setMSR(ca_mame::PowerPC602::MSR_EE);
+    assert(cpu.step()==1 && cpu.pc()==0x500 && cpu.srr0()==0x44);
+    assert(cpu.srr1()==ca_mame::PowerPC602::MSR_EE);
+    cpu.reset();
     assert(!cpu.faulted() && cpu.pc()==0 && cpu.gpr(3)==0);
 }
