@@ -76,3 +76,6 @@ A new `M2FramebufferCapture` utility samples caller-selected, aligned RAM words 
 
 ## Konami ATAPI control register (incremental hardware integration)
 The upstream MAME `konamim2.cpp` maps `0x37600000–0x3760000f` to a 16-bit Konami-specific control register on the high 16-bit lane of its 64-bit PowerPC bus. Bit 15 is documented as active-low /Reset; bit 14 is a commented-out DMA acknowledgment candidate. The prototype now accepts the upper halfword of a 32-bit write at `0x37600000`, resets its experimental ATAPI taskfile on bit-15 falling edge, and exposes the last control word for diagnostics. This 32-bit adapter is provisional, not a full 64-bit lane-accurate implementation; bit 14 is not wired to DMA. Reference: https://github.com/mamedev/mame/blob/master/src/mame/konami/konamim2.cpp .
+
+## Integrated milestone tracking
+Future Evil Night development is grouped into hardware integration batches with CI verification of the final commit. A passing unit test does not establish arcade game compatibility.
