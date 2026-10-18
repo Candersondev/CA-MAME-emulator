@@ -8,6 +8,7 @@ add_library(ca_mame_core
     src/core/Machine.cpp
     src/bus/MemoryBus.cpp
     src/cpu/Intel8080.cpp
+    src/drivers/SpaceInvaders.cpp
 )
 target_include_directories(ca_mame_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(MSVC)
@@ -30,4 +31,7 @@ if(BUILD_TESTING)
     add_executable(io-interrupt-tests tests/io_interrupt_tests.cpp)
     target_link_libraries(io-interrupt-tests PRIVATE ca_mame_core)
     add_test(NAME io_interrupt_tests COMMAND io-interrupt-tests)
+    add_executable(space-invaders-tests tests/space_invaders_tests.cpp)
+    target_link_libraries(space-invaders-tests PRIVATE ca_mame_core)
+    add_test(NAME space_invaders_tests COMMAND space-invaders-tests)
 endif()
