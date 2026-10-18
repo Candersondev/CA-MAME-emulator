@@ -11,8 +11,10 @@ public:
     static constexpr std::uint32_t base=0x3f000000u;
     static constexpr std::uint32_t size=0x01000000u;
     explicit M2AtapiTaskfile(AtapiCdRom& cd) noexcept:cd_(cd){}
-    void reset() noexcept {status_=0x40;error_=0;features_=0;byteCount_=0;packetBytes_=0;dataIndex_=0;response_.clear();awaitingPacket_=false;irq_=false;}
-    bool interruptAsserted() const noexcept{return irq_;}
+    void reset() noexcept {status_=0x40;error_=0;features_=0;byteCount_=0;packetBytes_=0;dataIndex_=0;response_.clear();awaitingPacket_=false;irq_=false;interruptDisabled_=false;}
+    bool interruptAsserted() const noexcept{return irq_ && !interruptDisabled_;}
+    void setInterruptDisabled(bool disabled) noexcept {interruptDisabled_=disabled;}
+    bool interruptPending() const noexcept {return irq_;}
     std::uint8_t status() const noexcept{return status_;}
     std::uint8_t error() const noexcept{return error_;}
     std::size_t pendingBytes() const noexcept{return response_.size()-dataIndex_;}
@@ -68,6 +70,6 @@ private:
     std::size_t packetBytes_=0,dataIndex_=0;
     std::uint16_t byteCount_=0;
     std::uint8_t status_=0x40,error_=0,features_=0;
-    bool awaitingPacket_=false,irq_=false;
+    bool awaitingPacket_=false,irq_=false,interruptDisabled_=false;
 };
 }
