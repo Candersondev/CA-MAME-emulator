@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -68,6 +69,16 @@ int main(int argc,char** argv) {
     SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST);
     SDL_SetRenderLogicalPresentation(renderer,static_cast<int>(Board::Width),static_cast<int>(Board::Height),
                                      SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    // Initial synthesized UFO hum for sound port 3 bit 0. Original sampled
+    // arcade effects are not included; other sound edges remain available.
+    SDL_AudioSpec audioSpec{};
+    audioSpec.format=SDL_AUDIO_F32;
+    audioSpec.channels=1;
+    audioSpec.freq=44100;
+    SDL_AudioStream* audio=SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,&audioSpec,nullptr,nullptr);
+    if(audio) SDL_ResumeAudioStreamDevice(audio);
+    else std::cerr<<"Audio unavailable: "<<SDL_GetError()<<"\n";
+    double audioPhase=0.0;
     bool running=true;
     auto next=std::chrono::steady_clock::now();
     while(running) {
@@ -81,6 +92,17 @@ int main(int argc,char** argv) {
         updateInputs(board);
         board.runHalfFrame();
         board.runHalfFrame();
+        if(audio) {
+            std::array<float,735> samples{};
+            const bool ufo=(board.soundPort3()&1)!=0;
+            for(auto& sample:samples) {
+                sample=ufo?static_cast<float>(0.12*std::sin(audioPhase)):0.0f;
+                audioPhase+=6.283185307179586*110.0/44100.0;
+                if(audioPhase>=6.283185307179586)audioPhase-=6.283185307179586;
+            }
+            if(!SDL_PutAudioStreamData(audio,samples.data(),static_cast<int>(samples.size()*sizeof(float))))
+                std::cerr<<"SDL audio queue: "<<SDL_GetError()<<"\n";
+        }
         const auto pixels=board.frameBuffer();
         if(!SDL_UpdateTexture(texture,nullptr,pixels.data(),static_cast<int>(Board::Width*sizeof(std::uint32_t)))) {
             std::cerr<<"SDL_UpdateTexture: "<<SDL_GetError()<<"\n";break;
@@ -93,6 +115,7 @@ int main(int argc,char** argv) {
         if(next>now)std::this_thread::sleep_until(next);
         else if(now-next>std::chrono::milliseconds(100))next=now;
     }
+    if(audio) SDL_DestroyAudioStream(audio);
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
