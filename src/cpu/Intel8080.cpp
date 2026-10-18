@@ -90,8 +90,8 @@ std::uint32_t Intel8080::step() {
     if((op&0xc7)==0x05) { int i=(op>>3)&7;auto old=reg(i);auto v=std::uint8_t(old-1);
         ac=(old&15)==0;setReg(i,v);flagsZSP(v);return i==6?10:5; }
     if((op&0xc7)==0x06) { int i=(op>>3)&7;setReg(i,fetch());return i==6?10:7; }
-    if((op&0xcf)==0x02) { write(pair((op>>4)&1),a);return 7; }
-    if((op&0xcf)==0x0a) { a=read(pair((op>>4)&1));return 7; }
+    if((op&0xef)==0x02) { write(pair((op>>4)&1),a);return 7; }
+    if((op&0xef)==0x0a) { a=read(pair((op>>4)&1));return 7; }
     if((op&0xc7)==0xc0) { if(condition((op>>3)&7)) {pc=pop();return 11;}return 5; }
     if((op&0xc7)==0xc2) { auto addr=fetch16();if(condition((op>>3)&7))pc=addr;return 10; }
     if((op&0xc7)==0xc4) { auto addr=fetch16();if(condition((op>>3)&7)) {push(pc);pc=addr;return 17;}return 11; }
