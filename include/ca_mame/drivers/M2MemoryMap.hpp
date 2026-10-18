@@ -35,6 +35,8 @@ public:
         return true;
     }
     void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();}
+    bool loadBioByte(std::uint32_t address,std::uint8_t value) noexcept {return cde_.loadBioByte(address,value);}
+    bool readBioByte(std::uint32_t address,std::uint8_t& value) const noexcept {return cde_.readBioByte(address,value);}
     void raiseHardwareInterrupt(unsigned line) noexcept {if(line<32)powerBusStatus_|=(1u<<line);}
     bool hardwareInterruptAsserted() const noexcept{return (powerBusStatus_&powerBusEnable_)!=0 || cde_.interruptAsserted();}
     // Loads a word into ROM storage, bypassing guest read-only protection.
@@ -57,7 +59,35 @@ public:
         return false;
     }
     bool write32(std::uint32_t address,std::uint32_t value) noexcept {
-        if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size)return cde_.write32(address-M2Cde::base,value);
+        if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size){
+            const auto offset=address-M2Cde::base;
+            if(offset==0x1000u || offset==0x1020u){
+                if(value&0x80u){
+                    M2Cde::Transfer transfer{};
+                    const unsigned index=(offset==0x1020u)?1u:0u;
+                    if(!cde_.prepareTransfer(index,value,transfer))return false;
+                    if(transfer.destination<ramBase || transfer.destination>=ramBase+ramSize ||
+                       transfer.count>ramSize-(transfer.destination-ramBase))return false;
+                    // Prevalidate the entire destination before mutating RAM.
+                    for(std::uint32_t i=0;i<transfer.count;i+=2){
+                        std::uint8_t hi=0,lo=0;
+                        const auto src=transfer.source+(transfer.fixedSource?0u:i);
+                        if(!cde_.readBioByte(src,hi)||!cde_.readBioByte(src+1,lo))return false;
+                    }
+                    for(std::uint32_t i=0;i<transfer.count;i+=2){
+                        std::uint8_t hi=0,lo=0;
+                        const auto src=transfer.source+(transfer.fixedSource?0u:i);
+                        cde_.readBioByte(src,hi);
+                        cde_.readBioByte(src+1,lo);
+                        if(!ram_.write16(transfer.destination-ramBase+i,
+                                        static_cast<std::uint16_t>((std::uint16_t(hi)<<8)|lo)))return false;
+                    }
+                    cde_.completeTransfer(index,transfer);
+                    return true;
+                }
+            }
+            return cde_.write32(offset,value);
+        }
         if(address>=ramBase && address<ramBase+ramSize)return ram_.write32(address-ramBase,value);
         if(address<ramSize && (address<0x10000u || address>=0x100000u))return ram_.write32(address,value); // legacy test harness alias
         if(address==memoryControlBase){memoryConfig_=value;return true;}
