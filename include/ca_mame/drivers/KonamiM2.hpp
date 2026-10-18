@@ -3,6 +3,7 @@
 #include <vector>
 #include "ca_mame/drivers/M2MemoryMap.hpp"
 #include "ca_mame/drivers/M2CpuBus.hpp"
+#include "ca_mame/drivers/M2FramebufferCapture.hpp"
 #include "ca_mame/cpu/PowerPC602.hpp"
 namespace ca_mame::drivers {
 // Experimental shared-RAM dual-processor harness; NOT a Konami M2 board implementation.
@@ -16,6 +17,11 @@ public:
     bool mountCdIso(const std::string& path){return memory_.cdRom().mountIso(path);}
     void ejectCd() noexcept {memory_.cdRom().eject();}
     bool cdReady() const noexcept {return memory_.cdRom().ready();}
+    bool captureFramebuffer(std::uint32_t address,std::uint32_t width,
+                            std::uint32_t height,std::uint32_t strideBytes,
+                            std::vector<std::uint8_t>& rgba) const {
+        return M2FramebufferCapture::capture(memory_,address,width,height,strideBytes,rgba);
+    }
     bool loadWord(std::uint32_t address,std::uint32_t value){return memory_.write32(address,value);}
     bool readWord(std::uint32_t address,std::uint32_t& value)const{return memory_.read32(address,value);}
     void stepPair(){cpu0_.setExternalInterrupt(irq_.asserted(0)||memory_.hardwareInterruptAsserted());cpu1_.setExternalInterrupt(irq_.asserted(1)||memory_.hardwareInterruptAsserted());cycles0_+=cpu0_.step();cycles1_+=cpu1_.step();}
