@@ -73,3 +73,6 @@ The KonamiM2 harness now offers ISO mounting/ejecting, a bounded dual-PowerPC st
 
 ## Experimental RAM framebuffer capture
 A new `M2FramebufferCapture` utility samples caller-selected, aligned RAM words as big-endian XRGB8888 and returns RGBA8888 bytes with explicit bounds validation. `KonamiM2::captureFramebuffer` exposes this for diagnostics and regression testing. **This is not M2 VDU emulation**: there is no real VDU register interpretation, scanout timing, layers, sprites, texture engine or SDL rendering hookup. The selected pixel format is diagnostic, not verified against Evil Night. This utility does not imply the game displays video or boots.
+
+## Konami ATAPI control register (incremental hardware integration)
+The upstream MAME `konamim2.cpp` maps `0x37600000–0x3760000f` to a 16-bit Konami-specific control register on the high 16-bit lane of its 64-bit PowerPC bus. Bit 15 is documented as active-low /Reset; bit 14 is a commented-out DMA acknowledgment candidate. The prototype now accepts the upper halfword of a 32-bit write at `0x37600000`, resets its experimental ATAPI taskfile on bit-15 falling edge, and exposes the last control word for diagnostics. This 32-bit adapter is provisional, not a full 64-bit lane-accurate implementation; bit 14 is not wired to DMA. Reference: https://github.com/mamedev/mame/blob/master/src/mame/konami/konamim2.cpp .
