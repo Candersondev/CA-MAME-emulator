@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "ca_mame/cpu/ICpu.hpp"
 #include "ca_mame/bus/MemoryBus.hpp"
+#include "ca_mame/bus/IoBus.hpp"
 namespace ca_mame {
 class Intel8080 final : public ICpu {
 public:
@@ -9,6 +10,7 @@ public:
     void reset() override;
     std::uint32_t step() override;
     void interrupt(std::uint8_t vector) noexcept;
+    void attachIo(IoBus& io) noexcept { io_=&io; }
     void setInterruptEnabled(bool enabled) noexcept { inte_ = enabled; }
     std::uint8_t a=0,b=0,c=0,d=0,e=0,h=0,l=0;
     std::uint16_t pc=0,sp=0;
@@ -17,6 +19,8 @@ public:
     bool interruptsEnabled() const noexcept { return inte_; }
 private:
     MemoryBus& bus_;
+    IoBus* io_=nullptr;
+    unsigned eiDelay_=0;
     bool inte_=false, pending_=false;
     std::uint8_t pendingVector_=0;
     std::uint8_t read(std::uint16_t addr) const { return bus_.read(addr); }
