@@ -52,6 +52,24 @@ int main(int argc,char** argv){
   filtered=index.find(search,localOnly);
   refine();selected=0;offset=0;
  };
+ auto launchSelected=[&](){
+  if(filtered.empty())return;
+  const auto& item=scan.entries[filtered[selected]];
+  if(!item.game.runnable){std::cerr<<"MAME marks driver non-runnable: "<<item.game.name<<"\n";return;}
+  const auto verify=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],item.game.name,std::filesystem::path(argv[2]));
+  if(!verify)return;
+  const int auditCode=ca_mame::compat::MameBridge::launch(*verify);
+  audits.record(item.game.name,auditCode);
+  audits.save(auditFile);
+  if(auditCode!=0){std::cerr<<"ROM/BIOS/CHD verification failed for "<<item.game.name<<" (exit "<<auditCode<<"). Check MAME dependencies.\n";return;}
+  const auto plan=ca_mame::compat::MameBridge::plan(argv[3],item.game.name,std::filesystem::path(argv[2]));
+  if(!plan)return;
+  prefs.recordLaunch(item.game.name);prefs.save(prefsFile);
+  SDL_HideWindow(window);
+  const int result=ca_mame::compat::MameBridge::launch(*plan);
+  SDL_ShowWindow(window);
+  std::cerr<<"MAME exited with status "<<result<<"\n";
+ };
  while(running){
   SDL_Event e;
   while(SDL_PollEvent(&e)){
@@ -63,11 +81,7 @@ int main(int argc,char** argv){
     if(e.gbutton.button==SDL_GAMEPAD_BUTTON_DPAD_RIGHT)artworkCategory=(artworkCategory+1)%3;
     if(e.gbutton.button==SDL_GAMEPAD_BUTTON_DPAD_DOWN&&selected+1<filtered.size())++selected;
     if(e.gbutton.button==SDL_GAMEPAD_BUTTON_DPAD_UP&&selected>0)--selected;
-    if(e.gbutton.button==SDL_GAMEPAD_BUTTON_SOUTH&&!filtered.empty()){
-     const auto& name=scan.entries[filtered[selected]].game.name;
-     const auto plan=ca_mame::compat::MameBridge::plan(argv[3],name,std::filesystem::path(argv[2]));
-     if(plan){prefs.recordLaunch(name);prefs.save(prefsFile);SDL_HideWindow(window);ca_mame::compat::MameBridge::launch(*plan);SDL_ShowWindow(window);}
-    }
+    if(e.gbutton.button==SDL_GAMEPAD_BUTTON_SOUTH)launchSelected();
     if(e.gbutton.button==SDL_GAMEPAD_BUTTON_WEST&&!filtered.empty()){prefs.toggleFavorite(scan.entries[filtered[selected]].game.name);prefs.save(prefsFile);if(favoritesOnly)refresh();}
    }
    if(e.type==SDL_EVENT_MOUSE_BUTTON_DOWN&&e.button.button==SDL_BUTTON_LEFT){
@@ -102,12 +116,7 @@ int main(int argc,char** argv){
         if(!audits.save(auditFile))std::cerr<<"Failed to save audit status\\n";
         std::cerr<<"MAME ROM verification exit status: "<<code<<"\\n";}
       }break;
-     case SDLK_RETURN:case SDLK_KP_ENTER:
-      if(!filtered.empty()){
-       const auto plan=ca_mame::compat::MameBridge::plan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
-       if(plan){prefs.recordLaunch(scan.entries[filtered[selected]].game.name);prefs.save(prefsFile);SDL_HideWindow(window);const int result=ca_mame::compat::MameBridge::launch(*plan);
-        std::cerr<<"External MAME exit status: "<<result<<"\n";SDL_ShowWindow(window);}
-      }break;
+     case SDLK_RETURN:case SDLK_KP_ENTER:launchSelected();break;
      default:break;
     }
    }
@@ -124,7 +133,7 @@ int main(int argc,char** argv){
   const std::string title="CA-MAME ARCADE LIBRARY  /  "+std::to_string(filtered.size())+" games";
   SDL_RenderDebugText(renderer,16,12,title.c_str());
   SDL_RenderDebugText(renderer,16,32,("Search: "+search+"_").c_str());
-  SDL_RenderDebugText(renderer,16,52,"TAB local | F favorites | R recent | SPACE star | ENTER/A launch | F5 audit");
+  SDL_RenderDebugText(renderer,16,52,"TAB local | F favorites | R recent | SPACE star | ENTER/A verify+launch | F5 audit");
   SDL_RenderDebugText(renderer,16,68,"D-pad/arrows navigate | X favorite | click select | ESC exit");
   SDL_SetRenderDrawColor(renderer,26,33,48,255);
   SDL_FRect panel{static_cast<float>(listWidth),90,static_cast<float>(std::max(0,w-listWidth)),static_cast<float>(std::max(0,h-90))};
