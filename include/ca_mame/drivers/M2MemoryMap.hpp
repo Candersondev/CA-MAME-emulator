@@ -6,6 +6,7 @@
 #include "ca_mame/bus/WordBus.hpp"
 #include "ca_mame/bus/BigEndianBus.hpp"
 #include "ca_mame/drivers/M2InterruptController.hpp"
+#include "ca_mame/drivers/M2Cde.hpp"
 namespace ca_mame::drivers {
 // Prototype register layout for unit tests ONLY; real M2 addresses are not established.
 class M2MemoryMap final : public WordBus {
@@ -33,12 +34,13 @@ public:
         }
         return true;
     }
-    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;}
+    void resetRegisters() noexcept {powerBusEnable_=0;powerBusStatus_=0;memoryRefresh_=0;cde_.reset();}
     void raiseHardwareInterrupt(unsigned line) noexcept {if(line<32)powerBusStatus_|=(1u<<line);}
-    bool hardwareInterruptAsserted() const noexcept{return (powerBusStatus_&powerBusEnable_)!=0;}
+    bool hardwareInterruptAsserted() const noexcept{return (powerBusStatus_&powerBusEnable_)!=0 || cde_.interruptAsserted();}
     // Loads a word into ROM storage, bypassing guest read-only protection.
     bool loadBootWord(std::uint32_t offset,std::uint32_t value) noexcept{return bootRom_.write32(offset,value);}
     bool read32(std::uint32_t address,std::uint32_t& value) const noexcept {
+        if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size)return cde_.read32(address-M2Cde::base,value);
         if(address>=ramBase && address<ramBase+ramSize)return ram_.read32(address-ramBase,value);
         if(address<ramSize && (address<0x10000u || address>=0x100000u))return ram_.read32(address,value); // legacy test harness alias
         if(address==memoryControlBase){value=memoryConfig_;return true;}
@@ -55,6 +57,7 @@ public:
         return false;
     }
     bool write32(std::uint32_t address,std::uint32_t value) noexcept {
+        if(address>=M2Cde::base && address<M2Cde::base+M2Cde::size)return cde_.write32(address-M2Cde::base,value);
         if(address>=ramBase && address<ramBase+ramSize)return ram_.write32(address-ramBase,value);
         if(address<ramSize && (address<0x10000u || address>=0x100000u))return ram_.write32(address,value); // legacy test harness alias
         if(address==memoryControlBase){memoryConfig_=value;return true;}
@@ -71,6 +74,7 @@ public:
     }
 private:
     BigEndianBus ram_,bootRom_;
+    M2Cde cde_;
     M2InterruptController& irq_;
     std::uint32_t powerBusEnable_=0,powerBusStatus_=0;
     // Two 8 MiB banks: SS1=5 at bit 13, SS0=5 at bit 10.
