@@ -20,6 +20,13 @@ endif()
 add_executable(ca-mame src/frontend/main.cpp)
 target_link_libraries(ca-mame PRIVATE ca_mame_core)
 
+option(CA_MAME_ENABLE_SDL3 "Build the optional SDL3 arcade frontend" OFF)
+if(CA_MAME_ENABLE_SDL3)
+    find_package(SDL3 CONFIG REQUIRED)
+    add_executable(ca-mame-sdl src/frontend/sdl_main.cpp)
+    target_link_libraries(ca-mame-sdl PRIVATE ca_mame_core SDL3::SDL3)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
     add_executable(ca-mame-tests tests/core_tests.cpp)
