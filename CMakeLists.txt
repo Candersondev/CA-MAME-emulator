@@ -17,6 +17,7 @@ add_library(ca_mame_core
     src/compat/GameLibrary.cpp
     src/compat/AuditStore.cpp
     src/compat/LibraryIndex.cpp
+    src/compat/LibraryPreferences.cpp
     src/core/Machine.cpp
     src/core/MachineRegistry.cpp
     src/rom/RomManager.cpp
@@ -49,6 +50,9 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(library-preferences-tests tests/library_preferences_tests.cpp)
+    target_link_libraries(library-preferences-tests PRIVATE ca_mame_core)
+    add_test(NAME library_preferences_tests COMMAND library-preferences-tests)
     add_executable(library-index-tests tests/library_index_tests.cpp)
     target_link_libraries(library-index-tests PRIVATE ca_mame_core)
     add_test(NAME library_index_tests COMMAND library-index-tests)
