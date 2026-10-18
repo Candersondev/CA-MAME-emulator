@@ -2,6 +2,7 @@
 #include "ca_mame/compat/GameLibrary.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
 #include "ca_mame/compat/AuditStore.hpp"
+#include "ca_mame/compat/LibraryIndex.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -29,9 +30,10 @@ int main(int argc,char** argv){
  std::string search;
  bool localOnly=true,running=true;
  std::size_t selected=0,offset=0;
- auto filtered=ca_mame::compat::GameLibrary::filter(scan,search,localOnly);
+ ca_mame::compat::LibraryIndex index(scan);
+ auto filtered=index.find(search,localOnly);
  auto refresh=[&](){
-  filtered=ca_mame::compat::GameLibrary::filter(scan,search,localOnly);
+  filtered=index.find(search,localOnly);
   selected=0;offset=0;
  };
  while(running){
@@ -50,7 +52,7 @@ int main(int argc,char** argv){
      case SDLK_PAGEUP:selected=selected>20?selected-20:0;break;
      case SDLK_F5:
       if(!filtered.empty()){
-       const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],filtered[selected].game.name,std::filesystem::path(argv[2]));
+       const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
        if(plan){const int code=ca_mame::compat::MameBridge::launch(*plan);
         audits.record(filtered[selected].game.name,code);
         if(!audits.save(auditFile))std::cerr<<"Failed to save audit status\\n";
@@ -79,7 +81,7 @@ int main(int argc,char** argv){
   SDL_RenderDebugText(renderer,18,52,"Type to search | TAB filter | arrows select | ENTER launch | F5 verify | ESC exit");
   for(int i=0;i<visible&&offset+static_cast<std::size_t>(i)<filtered.size();++i){
    const auto idx=offset+static_cast<std::size_t>(i);
-   const auto& item=filtered[idx];
+   const auto& item=scan.entries[filtered[idx]];
    const float y=80.0f+18.0f*i;
    if(idx==selected){SDL_SetRenderDrawColor(renderer,48,84,130,255);SDL_FRect r{12,y-2,static_cast<float>(w-24),17};SDL_RenderFillRect(renderer,&r);}
    const bool local=item.localArchive||item.hasChdDirectory;
