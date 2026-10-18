@@ -3,10 +3,10 @@
 namespace ca_mame {
 void Intel8080::reset() {
     a=b=c=d=e=h=l=0; pc=sp=0;
-    z=s=p=cy=ac=false; halted=false; inte_=pending_=false; pendingVector_=0;
+    z=s=p=cy=ac=false; halted=false; inte_=pending_=false; pendingVector_=0; eiDelay_=0;
 }
 void Intel8080::interrupt(std::uint8_t vector) noexcept {
-    if(inte_) { pending_=true; pendingVector_=vector & 7; }
+    if(inte_ || eiDelay_) { pending_=true; pendingVector_=vector & 7; }
 }
 std::uint16_t Intel8080::pair(int i) const {
     switch(i) { case 0:return (b<<8)|c; case 1:return (d<<8)|e; case 2:return hl(); default:return sp; }
@@ -58,6 +58,7 @@ void Intel8080::setFlags(std::uint8_t f) {
     s=f&0x80;z=f&0x40;ac=f&0x10;p=f&4;cy=f&1;
 }
 std::uint32_t Intel8080::step() {
+    if(eiDelay_) { --eiDelay_; if(eiDelay_==0) inte_=true; }
     if(pending_ && inte_) {
         pending_=false; inte_=false; halted=false; push(pc); pc=std::uint16_t(pendingVector_*8); return 11;
     }
@@ -122,14 +123,14 @@ std::uint32_t Intel8080::step() {
         case 0xc3:case 0xcb:pc=fetch16();return 10;
         case 0xc9:case 0xd9:pc=pop();return 10;
         case 0xcd:case 0xdd:case 0xed:case 0xfd:{auto addr=fetch16();push(pc);pc=addr;return 17;}
-        case 0xd3:fetch();return 10; // OUT port placeholder: add I/O bus before game drivers
-        case 0xdb:fetch();a=0xff;return 10; // IN port placeholder: unconnected bus
+        case 0xd3:{auto port=fetch();if(io_)io_->write(port,a);return 10;}
+        case 0xdb:{auto port=fetch();a=io_?io_->read(port):0xff;return 10;}
         case 0xe3:{auto lo=read(sp),hi=read(std::uint16_t(sp+1));write(sp,l);write(std::uint16_t(sp+1),h);l=lo;h=hi;return 18;}
         case 0xe9:pc=hl();return 5;
         case 0xeb:{auto oldD=d,oldE=e;d=h;e=l;h=oldD;l=oldE;return 5;}
-        case 0xf3:inte_=false;return 4;
+        case 0xf3:inte_=false;eiDelay_=0;return 4;
         case 0xf9:sp=hl();return 5;
-        case 0xfb:inte_=true;return 4; // EI deferred enable to be implemented
+        case 0xfb:eiDelay_=2;return 4;
         default:throw std::runtime_error("Unimplemented Intel 8080 opcode");
     }
 }
