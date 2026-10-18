@@ -1,6 +1,8 @@
 #include "ca_mame/compat/MameBridge.hpp"
 #include <algorithm>
 #include <cctype>
+#include <istream>
+#include <sstream>
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -54,6 +56,48 @@ std::vector<Game> MameBridge::parseListXml(std::string_view xml){
    result.push_back(std::move(game));
   }
   pos=close+10;
+ }
+ return result;
+}
+std::vector<Game> MameBridge::parseListXml(std::istream& input){
+ std::vector<Game> result;
+ std::string pending,chunk(65536,'\0');
+ // Incremental bounded-buffer scan; do not retain the full XML catalog.
+ // The parser intentionally extracts only simple MAME machine metadata.
+ while(input){
+  input.read(chunk.data(),static_cast<std::streamsize>(chunk.size()));
+  const auto count=input.gcount();
+  if(count<=0)break;
+  pending.append(chunk.data(),static_cast<std::size_t>(count));
+  std::size_t consumed=0;
+  for(;;){
+   auto start=pending.find("<machine ",consumed);
+   if(start==std::string::npos){
+    if(consumed>0)pending.erase(0,consumed);
+    if(pending.size()>128)pending.erase(0,pending.size()-128);
+    break;
+   }
+   const auto headerEnd=pending.find('>',start);
+   if(headerEnd==std::string::npos){pending.erase(0,start);break;}
+   const auto close=pending.find("</machine>",headerEnd+1);
+   if(close==std::string::npos){
+    pending.erase(0,start);
+    if(pending.size()>1024*1024)pending.clear(); // reject pathological entries
+    break;
+   }
+   const auto tag=std::string_view(pending).substr(start,headerEnd-start+1);
+   const auto body=std::string_view(pending).substr(headerEnd+1,close-headerEnd-1);
+   auto name=attribute(tag,"name");
+   if(validDriverName(name)){
+    Game game;game.name=std::move(name);
+    game.description=element(body,"description");
+    game.year=element(body,"year");
+    game.manufacturer=element(body,"manufacturer");
+    game.runnable=attribute(tag,"runnable")!="no";
+    result.push_back(std::move(game));
+   }
+   consumed=close+10;
+  }
  }
  return result;
 }
