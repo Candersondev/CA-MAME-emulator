@@ -8,6 +8,8 @@ class KonamiM2 {
 public:
     KonamiM2():memory_(irq_),cpu0_(memory_),cpu1_(memory_){}
     void reset(){irq_.reset();cpu0_.reset();cpu1_.reset();cycles0_=cycles1_=0;}
+    static constexpr std::uint32_t resetVector=0xfff00100u;
+    void powerOnReset(){reset();cpu0_.setPC(resetVector);cpu1_.setPC(resetVector);cpu0_.setMSR(0x40u);cpu1_.setMSR(0x40u);}
     bool loadBootRom(const std::string& path){return memory_.loadBootRom(path);}
     bool loadWord(std::uint32_t address,std::uint32_t value){return memory_.write32(address,value);}
     bool readWord(std::uint32_t address,std::uint32_t& value)const{return memory_.read32(address,value);}
