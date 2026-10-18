@@ -40,3 +40,6 @@ No proprietary ROMs or copyrighted BIOS images are included.
 ### Experimental Konami M2 boot trace
 
 After building `ca-mame`, run `ca-mame --m2-trace path/to/your-legally-obtained-2MiB-boot-rom.bin 100` to log up to 100 instructions from the currently modeled ROM base. This is diagnostic only; Evil Night is not bootable. ROM size must be exactly 2,097,152 bytes. The RAM layout is provisional and does not yet match all M2 BDA memory decoding.
+
+## Downloadable Windows arcade launcher
+The SDL3 Windows GitHub Actions job produces `CA-MAME-Windows-SDL3` as a ZIP artifact. Extract it and run `Start-CA-MAME.cmd` to open the arcade library. The ZIP includes `ca-mame-library.exe`, `SDL3.dll`, `SDL3_image.dll`, `Start-CA-MAME.ps1`, the native experimental `ca-mame-sdl.exe`, and artwork folders. **External MAME is not bundled**; install MAME separately and copy its executable beside the launcher or invoke `Start-CA-MAME.ps1 -MameExecutable "C:\\path\\to\\mame.exe"`. On first run the launcher creates `catalog.xml` from `mame.exe -listxml`, then opens the browser. Put legally obtained ROM files in `roms/`. The browser launches compatible titles through the external MAME program; this is not native CA-MAME support for every MAME title. The executable artifact is retained for 30 days by GitHub Actions.
