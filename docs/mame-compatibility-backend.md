@@ -13,3 +13,6 @@ Install MAME separately, then use `ca-mame --mame-launch /path/to/mame evilngt /
 
 ## Game Library (implemented)
 Run `ca-mame --mame-library catalog.xml /path/to/roms` to enumerate catalog entries and whether a matching .zip or .7z archive or game-named directory exists. Append `--local` to show only locally detected entries. The scan is nonrecursive and uses case-insensitive names for portability. It does not open archives, validate CHDs, check parent/clone dependencies, or assert a game is playable. Use `--mame-verify` for ROM verification by an installed MAME executable. Catalog XML parsing currently loads the entire input and is not yet streaming; huge full MAME catalogs may use significant memory.
+
+## SDL3 graphical browser
+When built with `CA_MAME_ENABLE_SDL3=ON`, the `ca-mame-library` executable offers a keyboard-operated graphical browser: `ca-mame-library catalog.xml /path/to/roms /path/to/mame`. Type to search game ID, description, or manufacturer; Tab toggles local-only versus all; arrow/Page Up/Page Down keys navigate; Enter launches selected game using external MAME; Escape quits. This is an initial SDL3 text-based GUI using SDL's built-in debug font, not a full featured artwork browser. Launch is synchronous; the browser hides while MAME runs. Local indicators mean filename/directory presence only, not verified ROM integrity.
