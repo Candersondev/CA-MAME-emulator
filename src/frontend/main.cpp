@@ -9,6 +9,18 @@
 #include <fstream>
 #include <sstream>
 int main(int argc,char** argv) {
+    if(argc>=4 && (std::string_view(argv[1])=="--mame-launch" ||
+                    std::string_view(argv[1])=="--mame-verify")){
+        const bool verify=std::string_view(argv[1])=="--mame-verify";
+        const auto rom=argc>=5?std::optional<std::filesystem::path>(argv[4]):std::nullopt;
+        const auto p=verify?ca_mame::compat::MameBridge::verifyRomsPlan(argv[2],argv[3],rom):
+                            ca_mame::compat::MameBridge::plan(argv[2],argv[3],rom);
+        if(!p){std::cerr<<"Invalid MAME command arguments\n";return 2;}
+        const int status=ca_mame::compat::MameBridge::launch(*p);
+        if(status<0){std::cerr<<"Could not start external MAME executable\n";return 3;}
+        return status;
+    }
+
     if(argc>=3 && std::string_view(argv[1])=="--mame-catalog"){
         std::ifstream input(argv[2],std::ios::binary);
         if(!input){std::cerr<<"Unable to open MAME XML catalog\\n";return 2;}
