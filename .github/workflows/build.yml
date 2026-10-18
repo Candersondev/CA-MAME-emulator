@@ -68,3 +68,33 @@ jobs:
         run: cmake --build build-sdl --config Release --parallel
       - name: Run headless tests
         run: ctest --test-dir build-sdl -C Release --output-on-failure
+      - name: Package Windows SDL3 executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path dist/CA-MAME-Windows | Out-Null
+          $exe = Get-ChildItem -Path build-sdl -Recurse -Filter ca-mame-sdl.exe | Where-Object { $_.FullName -notmatch 'CMakeFiles' } | Select-Object -First 1
+          if (-not $exe) { throw 'ca-mame-sdl.exe not found' }
+          Copy-Item $exe.FullName dist/CA-MAME-Windows/
+          $dll = Get-ChildItem -Path sdl-install -Recurse -Filter SDL3.dll | Select-Object -First 1
+          if (-not $dll) { throw 'SDL3.dll not found' }
+          Copy-Item $dll.FullName dist/CA-MAME-Windows/
+          @'
+          CA-MAME Space Invaders - Windows
+          =================================
+          Place legally obtained invaders.h, invaders.g, invaders.f, invaders.e ROMs in this folder.
+          Run from a terminal:
+            .\\ca-mame-sdl.exe invaders.h invaders.g invaders.f invaders.e
+          C = coin, 1/2 = start, arrows = move, Space = fire, Esc = quit.
+          This is an experimental emulator; actual game execution is not yet validated.
+          '@ | Set-Content -Path dist/CA-MAME-Windows/README.txt
+          Compress-Archive -Path dist/CA-MAME-Windows/* -DestinationPath dist/CA-MAME-Windows.zip -Force
+      - name: Upload Windows executable
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CA-MAME-Windows-SDL3
+          path: dist/CA-MAME-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
