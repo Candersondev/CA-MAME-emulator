@@ -2,6 +2,7 @@
 #include <algorithm>
 namespace ca_mame::drivers {
 SpaceInvaders::SpaceInvaders() : cpu_(memory_) {
+    memory_.configureSpaceInvadersMap();
     cpu_.attachIo(io_);
     io_.onRead(0,[this]{return inputs_[0];});
     io_.onRead(1,[this]{return inputs_[1];});
@@ -22,7 +23,7 @@ void SpaceInvaders::setInput(std::uint8_t port,std::uint8_t value) {
 bool SpaceInvaders::loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes) {
     // 0x0000-0x1fff is the original 8 KiB program ROM region.
     if(address>=0x2000 || bytes.size()>0x2000u-address)return false;
-    for(std::size_t i=0;i<bytes.size();++i)memory_.write(std::uint16_t(address+i),bytes[i]);
+    for(std::size_t i=0;i<bytes.size();++i)memory_.loadRomByte(std::uint16_t(address+i),bytes[i]);
     return true;
 }
 std::uint64_t SpaceInvaders::runHalfFrame() {
