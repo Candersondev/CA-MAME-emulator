@@ -4,6 +4,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(FetchContent)
+FetchContent_Declare(zlib SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/zlib-src" URL https://zlib.net/fossils/zlib-1.3.1.tar.gz)
+# Prefer system zlib when available; otherwise fetch the portable source.
+find_package(ZLIB QUIET)
+if(NOT ZLIB_FOUND)
+    FetchContent_MakeAvailable(zlib)
+    add_library(ZLIB::ZLIB ALIAS zlibstatic)
+endif()
 add_library(ca_mame_core
     src/core/Machine.cpp
     src/core/MachineRegistry.cpp
@@ -12,6 +20,7 @@ add_library(ca_mame_core
     src/cpu/Intel8080.cpp
     src/drivers/SpaceInvaders.cpp
 )
+target_link_libraries(ca_mame_core PRIVATE ZLIB::ZLIB)
 target_include_directories(ca_mame_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(MSVC)
     target_compile_options(ca_mame_core PRIVATE /W4)
