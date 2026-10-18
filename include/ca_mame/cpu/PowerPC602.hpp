@@ -14,10 +14,13 @@ public:
     std::uint32_t gpr(unsigned i) const noexcept{return registers_[i&31];}
     void setGpr(unsigned i,std::uint32_t v) noexcept{registers_[i&31]=v;}
     bool faulted() const noexcept{return fault_;}
+    std::uint32_t lr() const noexcept{return lr_;}
+    std::uint32_t cr() const noexcept{return cr_;}
 private:
     BigEndianBus& bus_;
     std::array<std::uint32_t,32> registers_{};
     std::uint32_t pc_=0;
     bool fault_=false;
+    std::uint32_t lr_=0,cr_=0;
 };
 }
