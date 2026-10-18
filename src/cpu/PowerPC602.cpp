@@ -1,8 +1,9 @@
 #include "ca_mame/cpu/PowerPC602.hpp"
 namespace ca_mame {
-void PowerPC602::reset(){registers_.fill(0);pc_=0;fault_=false;lr_=cr_=0;}
+void PowerPC602::reset(){registers_.fill(0);pc_=0;fault_=false;lr_=cr_=srr0_=0;externalInterrupt_=false;}
 std::uint32_t PowerPC602::step(){
     if(fault_)return 0;
+    if(externalInterrupt_){srr0_=pc_;pc_=0x500;externalInterrupt_=false;return 1;} // Prototype exception vector; MSR gating not implemented.
     std::uint32_t instruction=0;
     if(!bus_.read32(pc_,instruction)){fault_=true;return 0;}
     const auto currentPC=pc_;
