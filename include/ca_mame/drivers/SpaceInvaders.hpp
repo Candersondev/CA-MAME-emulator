@@ -1,0 +1,36 @@
+#pragma once
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include "ca_mame/bus/MemoryBus.hpp"
+#include "ca_mame/bus/IoBus.hpp"
+#include "ca_mame/cpu/Intel8080.hpp"
+namespace ca_mame::drivers {
+// First-pass monochrome Space Invaders hardware model.
+// ROM loading, ROM write protection, watchdog, audio and input mapping are incomplete.
+class SpaceInvaders {
+public:
+    static constexpr std::size_t Width=224, Height=256;
+    static constexpr std::uint32_t CpuHz=2000000;
+    SpaceInvaders();
+    void reset();
+    void setInput(std::uint8_t port,std::uint8_t value);
+    bool loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes);
+    std::uint8_t readMemory(std::uint16_t address) const { return memory_.read(address); }
+    std::uint8_t readPort(std::uint8_t port) const { return io_.read(port); }
+    void writePort(std::uint8_t port,std::uint8_t value) { io_.write(port,value); }
+    std::uint64_t runHalfFrame();
+    std::array<std::uint32_t,Width*Height> frameBuffer() const;
+    Intel8080& cpu() noexcept { return cpu_; }
+private:
+    MemoryBus memory_;
+    IoBus io_;
+    Intel8080 cpu_;
+    std::array<std::uint8_t,4> inputs_{};
+    std::uint16_t shift_=0;
+    std::uint8_t shiftOffset_=0;
+    std::uint64_t cycles_=0;
+    unsigned halfFrames_=0;
+};
+}
