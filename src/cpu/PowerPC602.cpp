@@ -1,6 +1,6 @@
 #include "ca_mame/cpu/PowerPC602.hpp"
 namespace ca_mame {
-void PowerPC602::reset(){registers_.fill(0);pc_=0;fault_=false;lr_=cr_=srr0_=srr1_=msr_=0;externalInterrupt_=false;}
+void PowerPC602::reset(){registers_.fill(0);pc_=0;fault_=false;lr_=cr_=ctr_=0;stopReason_=StopReason::None;faultAddress_=faultInstruction_=0;srr0_=srr1_=msr_=0;externalInterrupt_=false;}
 std::uint32_t PowerPC602::step(){
     if(fault_)return 0;
     if(externalInterrupt_ && (msr_&MSR_EE)){
@@ -8,16 +8,48 @@ std::uint32_t PowerPC602::step(){
         return 1; // Level-sensitive interrupt; board must acknowledge the source.
     }
     std::uint32_t instruction=0;
-    if(!bus_.read32(pc_,instruction)){fault_=true;return 0;}
+    if(!bus_.read32(pc_,instruction)){fault_=true;stopReason_=StopReason::InstructionFetch;faultAddress_=pc_;return 0;}
     const auto currentPC=pc_;
     pc_+=4;
     const unsigned op=instruction>>26;
     const unsigned rt=(instruction>>21)&31;
     const unsigned ra=(instruction>>16)&31;
     const auto immediate=static_cast<std::int16_t>(instruction&0xffff);
+    auto unsupported=[&](){fault_=true;stopReason_=StopReason::UnsupportedInstruction;faultAddress_=currentPC;faultInstruction_=instruction;};
+    auto dataFault=[&](std::uint32_t address){fault_=true;stopReason_=StopReason::DataAccess;faultAddress_=address;faultInstruction_=instruction;};
     switch(op) {
+        case 31: {
+            const unsigned xo=(instruction>>1)&1023u;
+            const unsigned spr=((instruction>>16)&31u)|(((instruction>>11)&31u)<<5);
+            switch(xo){
+                case 83: registers_[rt]=msr_;break; // mfmsr
+                case 146: msr_=registers_[rt];break; // mtmsr
+                case 339: // mfspr
+                    switch(spr){
+                        case 8:registers_[rt]=lr_;break;
+                        case 9:registers_[rt]=ctr_;break;
+                        case 26:registers_[rt]=srr0_;break;
+                        case 27:registers_[rt]=srr1_;break;
+                        default:unsupported();break;
+                    }
+                    break;
+                case 467: // mtspr
+                    switch(spr){
+                        case 8:lr_=registers_[rt];break;
+                        case 9:ctr_=registers_[rt];break;
+                        case 26:srr0_=registers_[rt];break;
+                        case 27:srr1_=registers_[rt];break;
+                        default:unsupported();break;
+                    }
+                    break;
+                case 266:registers_[rt]=registers_[ra]+registers_[(instruction>>11)&31];break; // add, no OE/record support
+                default:unsupported();break;
+            }
+            break;
+        }
         case 19: { // rfi (privilege and full MSR validation pending)
-            if(instruction!=0x4c000064u){fault_=true;break;}
+            if(instruction==0x4e800020u){pc_=lr_&~3u;break;} // blr
+            if(instruction!=0x4c000064u){unsupported();break;}
             pc_=srr0_&~3u;
             msr_=srr1_;
             break;
@@ -32,7 +64,7 @@ std::uint32_t PowerPC602::step(){
         case 16: { // bc: BO and CR bit selection (CTR-dependent modes not implemented)
             const unsigned bo=(instruction>>21)&31;
             const unsigned bi=(instruction>>16)&31;
-            if(!(bo&4u)){fault_=true;break;} // requires CTR handling
+            if(!(bo&4u)){unsupported();break;} // requires CTR handling
             const bool bit=((cr_>>(31-bi))&1u)!=0;
             if((bo&16u) || bit==((bo&8u)!=0)) {
                 std::int32_t displacement=static_cast<std::int16_t>(instruction&0xfffcu);
@@ -43,7 +75,7 @@ std::uint32_t PowerPC602::step(){
         }
         case 11: { // cmpi: signed compare into selected CR field
             const unsigned field=(instruction>>23)&7;
-            if(instruction&0x00200000u){fault_=true;break;} // 64-bit comparison not supported
+            if(instruction&0x00200000u){unsupported();break;} // 64-bit comparison not supported
             const auto lhs=static_cast<std::int32_t>(registers_[ra]);
             const auto rhs=static_cast<std::int32_t>(immediate);
             const std::uint32_t flags=lhs<rhs?8u:(lhs>rhs?4u:2u);
@@ -62,15 +94,15 @@ std::uint32_t PowerPC602::step(){
             break;
         case 32: { // lwz RT,D(RA)
             const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
-            if(!bus_.read32(address,registers_[rt]))fault_=true;
+            if(!bus_.read32(address,registers_[rt]))dataFault(address);
             break;
         }
         case 36: { // stw RS,D(RA)
             const auto address=(ra?registers_[ra]:0u)+static_cast<std::uint32_t>(static_cast<std::int32_t>(immediate));
-            if(!bus_.write32(address,registers_[rt]))fault_=true;
+            if(!bus_.write32(address,registers_[rt]))dataFault(address);
             break;
         }
-        default:fault_=true;break; // Explicit unsupported instruction, never silently NOP.
+        default:unsupported();break; // Explicit unsupported instruction, never silently NOP.
     }
     return fault_?0:1;
 }
