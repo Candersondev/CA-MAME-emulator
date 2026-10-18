@@ -11,9 +11,10 @@ int main(){
  if(!verify||verify->arguments.size()!=4||verify->arguments[0]!="-verifyroms"||verify->arguments[1]!="evilngt")return 5;
  if(MameBridge::verifyRomsPlan("mame","../evilngt"))return 6;
  if(MameBridge::launch({{}, {}})!=-1)return 7;
- const std::string xml="<mame><machine name=\"evilngt\" runnable=\"yes\"><description>Evil Night</description><year>1998</year><manufacturer>Konami</manufacturer></machine><machine name=\"broken\" runnable=\"no\"><description>Test</description></machine></mame>";
+ const std::string xml="<mame><machine name=\"evilngt\" runnable=\"yes\" sourcefile=\"konami/m2.cpp\" cloneof=\"evilngta\" romof=\"konamim2\"><description>Evil Night</description><year>1998</year><manufacturer>Konami</manufacturer></machine><machine name=\"broken\" runnable=\"no\"><description>Test</description></machine></mame>";
  auto games=MameBridge::parseListXml(xml);
  if(games.size()!=2||games[0].name!="evilngt"||games[0].description!="Evil Night"||games[0].year!="1998"||!games[0].runnable||games[1].runnable)return 4;
+ if(games[0].sourceFile!="konami/m2.cpp"||games[0].parent!="evilngta"||games[0].bios!="konamim2")return 10;
  std::istringstream input(xml);
  const auto streamed=MameBridge::parseListXml(input);
  if(streamed.size()!=games.size()||streamed[0].name!="evilngt"||streamed[1].runnable)return 8;
