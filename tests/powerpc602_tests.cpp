@@ -1,3 +1,4 @@
+#include "ca_mame/bus/BigEndianBus.hpp"
 #include "ca_mame/cpu/PowerPC602.hpp"
 #include <cassert>
 int main(){
