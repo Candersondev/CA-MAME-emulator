@@ -8,6 +8,7 @@
 #include "ca_mame/bus/MemoryBus.hpp"
 #include "ca_mame/bus/IoBus.hpp"
 #include "ca_mame/cpu/Intel8080.hpp"
+#include "ca_mame/devices/CycleWatchdog.hpp"
 namespace ca_mame::drivers {
 // Space Invaders board model. Sound events are latched; audio synthesis and watchdog remain TODO.
 struct SoundTransition {
@@ -33,6 +34,10 @@ public:
     SpaceInvaders();
     std::string_view driverId() const noexcept override { return "invaders"; }
     void reset() override;
+    void powerOnReset();
+    void setWatchdogEnabled(bool enabled) noexcept;
+    bool watchdogEnabled() const noexcept {return watchdogEnabled_;}
+    std::uint64_t watchdogResets() const noexcept {return watchdogResets_;}
     std::uint64_t runFrame() override { return runHalfFrame()+runHalfFrame(); }
     void setInput(std::uint8_t port,std::uint8_t value);
     bool loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes);
@@ -65,5 +70,9 @@ private:
     std::uint64_t cycles_=0;
     unsigned halfFrames_=0;
     bool accurateTiming_=false;
+    static constexpr std::uint64_t WatchdogTimeoutCycles=255ull*HardwareCpuHz*HTotal*VTotal/PixelHz;
+    devices::CycleWatchdog watchdog_{WatchdogTimeoutCycles};
+    bool watchdogEnabled_=false;
+    std::uint64_t watchdogResets_=0;
 };
 }
