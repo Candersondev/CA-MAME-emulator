@@ -46,6 +46,8 @@ public:
     // Consume ordered hardware control-line transitions for the audio backend.
     std::vector<SoundTransition> takeSoundTransitions();
     std::uint64_t runHalfFrame();
+    void setAccurateTiming(bool enabled) noexcept { accurateTiming_=enabled; }
+    bool accurateTiming() const noexcept { return accurateTiming_; }
     std::uint64_t elapsedCycles() const noexcept { return cycles_; }
     unsigned elapsedHalfFrames() const noexcept { return halfFrames_; }
     std::array<std::uint32_t,Width*Height> frameBuffer() const;
@@ -62,5 +64,6 @@ private:
     std::vector<SoundTransition> soundTransitions_;
     std::uint64_t cycles_=0;
     unsigned halfFrames_=0;
+    bool accurateTiming_=false;
 };
 }
