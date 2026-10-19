@@ -12,10 +12,18 @@ namespace ca_mame::drivers {
 // Shares the Intel 8080 core but has its own input/shift-register I/O.
 class GunFight final : public IMachine {
 public:
+    static constexpr std::size_t Width=224, Height=256;
+    static constexpr std::uint32_t MasterHz=19968000, CpuHz=MasterHz/10;
+    static constexpr std::uint32_t PixelHz=MasterHz/4, HTotal=0x140, VTotal=0x106;
+    static constexpr std::uint32_t IntTrigger1=0x080, IntTrigger2=0x0da;
     GunFight();
     std::string_view driverId() const noexcept override {return "gunfight";}
     void reset() override;
     std::uint64_t runFrame() override;
+    std::uint64_t runHalfFrame();
+    std::uint64_t elapsedCycles() const noexcept {return cycles_;}
+    std::uint64_t elapsedHalfFrames() const noexcept {return halfFrames_;}
+    std::array<std::uint32_t,Width*Height> frameBuffer() const;
     bool loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes);
     void setInput(std::uint8_t port,std::uint8_t value) noexcept;
     std::uint8_t readPort(std::uint8_t port) const {return io_.read(port);}
@@ -30,6 +38,6 @@ private:
     std::uint16_t shift_=0;
     std::uint8_t shiftCount_=0;
     std::uint64_t cycles_=0;
-    std::uint64_t frames_=0;
+    std::uint64_t halfFrames_=0;
 };
 }
