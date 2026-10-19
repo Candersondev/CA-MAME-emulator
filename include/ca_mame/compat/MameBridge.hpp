@@ -6,7 +6,9 @@
 #include <string_view>
 #include <vector>
 namespace ca_mame::compat {
-struct Game {std::string name,description,year,manufacturer;bool runnable=false;std::string sourceFile,parent,bios,deviceRef;bool mechanical=false;};
+struct RomRequirement {std::string name,crc,sha1,region;bool optional=false;};
+struct DiskRequirement {std::string name,sha1,region;bool optional=false;};
+struct Game {std::string name,description,year,manufacturer;bool runnable=false;std::string sourceFile,parent,bios,deviceRef;bool mechanical=false;std::vector<RomRequirement> roms;std::vector<DiskRequirement> disks;};
 struct ProcessResult {int exitCode=-1; std::string output; bool truncated=false;};
 struct LaunchPlan {std::filesystem::path executable;std::vector<std::string> arguments;};
 class MameBridge {
