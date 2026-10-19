@@ -16,6 +16,7 @@ add_library(ca_mame_core
     src/compat/MameBridge.cpp
     src/compat/RomDiagnostics.cpp
     src/compat/DependencyInspector.cpp
+    src/compat/ZipAudit.cpp
     src/compat/GameLibrary.cpp
     src/compat/AuditStore.cpp
     src/compat/LibraryIndex.cpp
