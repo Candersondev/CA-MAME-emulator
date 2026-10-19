@@ -33,7 +33,7 @@ DependencyReport DependencyInspector::inspect(const Game& game,const std::filesy
  if(game.bios!=game.name&&game.bios!=game.parent)add(game.bios,"ROM/BIOS parent");
  return report;
 }
-DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std::filesystem::path& root){
+static DependencyReport inspectWithSets(const Game& game,const std::filesystem::path& root,const std::vector<std::string>& sets){
  auto report=inspect(game,root);
  std::error_code ec;
  std::unordered_map<std::string,ZipAuditResult> archives;
@@ -48,7 +48,7 @@ DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std
  for(const auto& rom:game.roms){
   if(rom.optional||rom.name.empty())continue;
   const ZipEntryAudit* match=nullptr;
-  for(const auto& set:{game.name,game.parent,game.bios}){
+  for(const auto& set:sets){
    if(const auto* archive=inspectArchive(set)){
     for(const auto& entry:archive->entries){
      if(entry.name==rom.name){match=&entry;break;}
@@ -91,8 +91,10 @@ DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std
  return report;
 }
 
+DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std::filesystem::path& root){
+ return inspectWithSets(game,root,{game.name,game.parent,game.bios});
+}
 DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std::filesystem::path& root,const std::vector<Game>& catalog){
- auto report=inspectDetailed(game,root);
  std::unordered_map<std::string,const Game*> lookup;
  for(const auto& entry:catalog)lookup.emplace(entry.name,&entry);
  std::unordered_set<std::string> seen{game.name};
@@ -106,11 +108,19 @@ DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std
   for(const auto& parent:{ancestor.parent,ancestor.bios}){
    if(parent.empty()||!MameBridge::validDriverName(parent)||!seen.insert(parent).second)continue;
    pending.push_back(parent);
-   const bool present=existsSet(root,parent);
-   report.items.push_back({parent,"Transitive parent/BIOS",present?DependencyState::Found:DependencyState::Missing,
-     present?"Dependency set present; verify contents with MAME":"Required ancestor set not found locally; check MAME ROM paths"});
-   if(!present)report.hasMissing=true;
+
   }
+ }
+ std::vector<std::string> sets{game.name};
+ sets.insert(sets.end(),pending.begin(),pending.end());
+ auto report=inspectWithSets(game,root,sets);
+ for(std::size_t i=0;i<pending.size();++i){
+  const auto& name=pending[i];
+  if(name==game.parent||name==game.bios)continue;
+  const bool present=existsSet(root,name);
+  report.items.push_back({name,"Transitive parent/BIOS",present?DependencyState::Found:DependencyState::Missing,
+    present?"Ancestor set present; MAME verifies contents":"Ancestor set not found in configured local directory"});
+  if(!present)report.hasMissing=true;
  }
  return report;
 }
