@@ -54,5 +54,35 @@ int main() {
     if(total!=Clock::sampleDeadline(frames)) return 12;
     if(Clock::nanosecondDeadline(frames)<10000000000ull ||
        Clock::nanosecondDeadline(frames)>10100000000ull) return 13;
+    // Every emulated sound output must produce finite, bounded PCM.
+    for(unsigned voice=0;voice<InvadersAudio::VoiceCount;++voice) {
+        InvadersAudio effect;
+        effect.apply({static_cast<InvadersSignal>(voice),true,0});
+        std::array<float,2048> block{};
+        effect.render(block);
+        bool audible=false;
+        for(const auto value:block) {
+            if(!std::isfinite(value) || std::abs(value)>1.0f) return 14;
+            audible|=value!=0.0f;
+        }
+        if(!audible) return 15;
+        // Rising edge triggers are deterministic after reset.
+        effect.reset();
+        effect.apply({static_cast<InvadersSignal>(voice),true,0});
+        std::array<float,2048> replay{};
+        effect.render(replay);
+        if(block!=replay) return 16;
+    }
+    // Rapid rising/falling pulses still create a one-shot effect.
+    {
+        InvadersAudio pulse;
+        const std::array<InvadersSoundEvent,2> events={{{InvadersSignal::Shot,true,10},
+                                                       {InvadersSignal::Shot,false,11}}};
+        std::array<float,100> block{};
+        pulse.renderTimed(block,events,0,100);
+        bool tail=false;
+        for(std::size_t i=11;i<block.size();++i) tail|=block[i]!=0.0f;
+        if(!tail) return 17;
+    }
     return 0;
 }
