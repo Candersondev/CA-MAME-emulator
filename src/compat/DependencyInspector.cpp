@@ -29,4 +29,20 @@ DependencyReport DependencyInspector::inspect(const Game& game,const std::filesy
  if(game.bios!=game.name&&game.bios!=game.parent)add(game.bios,"ROM/BIOS parent");
  return report;
 }
+DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std::filesystem::path& root){
+ auto report=inspect(game,root);
+ std::error_code ec;
+ for(const auto& disk:game.disks){
+  if(disk.optional)continue;
+  const auto path=root/game.name/(disk.name+".chd");
+  const bool found=std::filesystem::is_regular_file(path,ec);
+  report.items.push_back({disk.name+".chd","CHD disk",found?DependencyState::Found:DependencyState::Missing,
+   found?"CHD present; SHA-1 and internal integrity require MAME verification":
+   "Expected "+path.string()+"; MAME may also locate it in a parent or configured ROM path"});
+  if(!found)report.hasMissing=true;
+  ec.clear();
+ }
+ return report;
+}
+
 }
