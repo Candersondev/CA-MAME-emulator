@@ -27,7 +27,7 @@ void GunFight::reset() {
     inputs_.fill(0);
     shift_=0;
     shiftCount_=0;
-    cycles_=frames_=0;
+    cycles_=halfFrames_=0;
 }
 bool GunFight::loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes) {
     if(address>=0x2000 || bytes.size()>0x2000u-address)return false;
@@ -38,11 +38,31 @@ bool GunFight::loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes
 void GunFight::setInput(std::uint8_t port,std::uint8_t value) noexcept {
     if(port<inputs_.size())inputs_[port]=value;
 }
-std::uint64_t GunFight::runFrame() {
-    // Initial 2 MHz / 60 Hz scheduler; board-specific raster/IRQ TODO.
-    const auto target=++frames_*2000000ull/60;
+std::uint64_t GunFight::runHalfFrame() {
+    const auto half=++halfFrames_;
+    const auto frame=(half-1)/2;
+    const auto scanline=(half&1)?IntTrigger1:IntTrigger2;
+    const auto deadline=((frame*VTotal+scanline)*std::uint64_t(CpuHz)*HTotal)/PixelHz;
     const auto before=cycles_;
-    while(cycles_<target)cycles_+=cpu_.step();
+    while(cycles_<deadline) cycles_+=cpu_.step();
+    cpu_.interrupt((half&1)?1:2);
     return cycles_-before;
+}
+std::uint64_t GunFight::runFrame() {
+    return runHalfFrame()+runHalfFrame();
+}
+std::array<std::uint32_t,GunFight::Width*GunFight::Height>
+GunFight::frameBuffer() const {
+    std::array<std::uint32_t,Width*Height> pixels{};
+    for(std::size_t offset=0;offset<0x1c00;++offset) {
+        const auto bits=memory_.read(std::uint16_t(0x2400+offset));
+        const auto x=offset/32;
+        const auto yByte=offset%32;
+        for(unsigned bit=0;bit<8;++bit) {
+            const auto y=yByte*8+bit;
+            pixels[(Height-1-y)*Width+x]=(bits&(1u<<bit))?0xffffffffu:0xff000000u;
+        }
+    }
+    return pixels;
 }
 }
