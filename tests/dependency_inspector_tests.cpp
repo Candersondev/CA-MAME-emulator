@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <chrono>
+#include "ca_mame/compat/ZipAudit.hpp"
 int main(){
  namespace fs=std::filesystem;
  using namespace ca_mame::compat;
@@ -17,6 +18,11 @@ int main(){
  if(r.hasMissing||r.items.size()!=3){fs::remove_all(root);return 2;}
  game.bios="parent";r=DependencyInspector::inspect(game,root);
  if(r.items.size()!=2){fs::remove_all(root);return 3;}
+ const auto invalid=auditZip(root/"clone.zip");
+ if(invalid.readable||invalid.error.empty()){fs::remove_all(root);return 4;}
+ game.roms.push_back({"missing.bin","12345678","","",false});
+ const auto detailed=DependencyInspector::inspectDetailed(game,root);
+ if(!detailed.hasMissing){fs::remove_all(root);return 5;}
  fs::remove_all(root);
  return 0;
 }
