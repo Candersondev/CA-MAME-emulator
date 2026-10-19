@@ -208,5 +208,33 @@ int main() {
         expect(gameplay.readMemory(0x2400)==0x02 && gameplay.soundPort3()==0x02,
                "ROM responds to changing input during execution");
     }
+    // Soft reset must not erase installed program ROM; power-on reset does.
+    {
+        ca_mame::drivers::SpaceInvaders machine;
+        const std::array<std::uint8_t,3> romBytes={0xc3,0x00,0x00};
+        expect(machine.loadRom(0,romBytes),"reset test ROM loads");
+        machine.runFrame();
+        machine.reset();
+        expect(machine.readMemory(0)==0xc3,"soft reset preserves ROM");
+        expect(machine.elapsedCycles()==0,"soft reset restarts CPU timing");
+        machine.powerOnReset();
+        expect(machine.readMemory(0)==0,"power-on reset clears ROM storage");
+    }
+    // MAME Midway 8080 reference: watchdog is kicked by output port 6,
+    // with a 255-frame timeout. Keep it opt-in for existing clients.
+    {
+        ca_mame::drivers::SpaceInvaders machine;
+        machine.setWatchdogEnabled(true);
+        const std::array<std::uint8_t,3> loop={0xc3,0x00,0x00};
+        machine.loadRom(0,loop);
+        for(unsigned i=0;i<200;++i) machine.runFrame();
+        expect(machine.watchdogResets()==0,"watchdog stays armed before deadline");
+        machine.writePort(6,0); // kick at 200 frames
+        for(unsigned i=0;i<100;++i) machine.runFrame();
+        expect(machine.watchdogResets()==0,"port 6 kick prevents watchdog timeout");
+        for(unsigned i=0;i<170 && machine.watchdogResets()==0;++i) machine.runFrame();
+        expect(machine.watchdogResets()==1,"watchdog eventually resets stalled board");
+        expect(machine.readMemory(0)==0xc3,"watchdog reset preserves ROM");
+    }
     return failures?1:0;
 }
