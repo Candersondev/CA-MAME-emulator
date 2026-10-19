@@ -72,8 +72,7 @@ int main(int argc,char** argv) {
     SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST);
     SDL_SetRenderLogicalPresentation(renderer,static_cast<int>(Board::Width),static_cast<int>(Board::Height),
                                      SDL_LOGICAL_PRESENTATION_LETTERBOX);
-    // Initial synthesized UFO hum for sound port 3 bit 0. Original sampled
-    // arcade effects are not included; other sound edges remain available.
+    // PCM synthesis is driven by board sound-control transitions.
     SDL_AudioSpec audioSpec{};
     audioSpec.format=SDL_AUDIO_F32;
     audioSpec.channels=1;
@@ -114,11 +113,15 @@ int main(int argc,char** argv) {
         ++frameNumber;
         const auto frameSampleCount=FrameClock::sampleDeadline(frameNumber)
             -FrameClock::sampleDeadline(frameNumber-1);
+        // Always advance the synthesizer for the emulated frame, even if
+        // SDL's playback queue is full. Skipping renderTimed would silently
+        // discard control transitions and freeze oscillator/envelope time.
+        std::vector<float> samples(static_cast<std::size_t>(frameSampleCount));
+        soundGenerator.renderTimed(samples,audioEvents,frameStart,frameEnd);
         if(audio) {
             constexpr int maxQueuedBytes=sampleRate*int(sizeof(float))/5;
-            if(SDL_GetAudioStreamQueued(audio)<maxQueuedBytes) {
-                std::vector<float> samples(static_cast<std::size_t>(frameSampleCount));
-                soundGenerator.renderTimed(samples,audioEvents,frameStart,frameEnd);
+            const auto queued=SDL_GetAudioStreamQueued(audio);
+            if(queued>=0 && queued<maxQueuedBytes) {
                 if(!SDL_PutAudioStreamData(audio,samples.data(),static_cast<int>(samples.size()*sizeof(float))))
                     std::cerr<<"SDL audio queue: "<<SDL_GetError()<<"\\n";
             }
