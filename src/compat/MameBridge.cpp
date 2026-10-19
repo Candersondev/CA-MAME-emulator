@@ -39,6 +39,24 @@ static std::string element(std::string_view body,std::string_view name){
  const auto end=body.find("</"+std::string(name)+">",start);
  return end==std::string_view::npos?std::string{}:std::string(body.substr(start,end-start));
 }
+static void parseRequirements(Game& game,std::string_view body){
+ auto parse=[&](std::string_view tagName,bool disk){
+  const std::string prefix="<"+std::string(tagName)+" ";
+  std::size_t pos=0;
+  while((pos=body.find(prefix,pos))!=std::string_view::npos){
+   const auto end=body.find('>',pos);
+   if(end==std::string_view::npos)break;
+   const auto tag=body.substr(pos,end-pos+1);
+   const auto name=attribute(tag,"name");
+   if(!name.empty()&&name.find('/')==std::string::npos&&name.find('\\\\')==std::string::npos){
+    if(disk)game.disks.push_back({name,attribute(tag,"sha1"),attribute(tag,"region"),attribute(tag,"optional")=="yes"});
+    else game.roms.push_back({name,attribute(tag,"crc"),attribute(tag,"sha1"),attribute(tag,"region"),attribute(tag,"optional")=="yes"});
+   }
+   pos=end+1;
+  }
+ };
+ parse("rom",false);parse("disk",true);
+}
 std::vector<Game> MameBridge::parseListXml(std::string_view xml){
  std::vector<Game> result;
  std::size_t pos=0;
@@ -57,6 +75,7 @@ std::vector<Game> MameBridge::parseListXml(std::string_view xml){
    game.parent=attribute(tag,"cloneof");
    game.bios=attribute(tag,"romof");
    game.mechanical=attribute(tag,"ismechanical")=="yes";
+   parseRequirements(game,body);
    result.push_back(std::move(game));
   }
   pos=close+10;
@@ -102,6 +121,7 @@ std::vector<Game> MameBridge::parseListXml(std::istream& input){
    game.parent=attribute(tag,"cloneof");
    game.bios=attribute(tag,"romof");
    game.mechanical=attribute(tag,"ismechanical")=="yes";
+    parseRequirements(game,body);
     result.push_back(std::move(game));
    }
    consumed=close+10;
