@@ -30,6 +30,8 @@ public:
     void writePort(std::uint8_t port,std::uint8_t value) {io_.write(port,value);}
     std::uint8_t readMemory(std::uint16_t address) const {return memory_.read(address);}
     Intel8080& cpu() noexcept {return cpu_;}
+    std::uint8_t soundPort() const noexcept {return soundPort_;}
+    std::uint8_t takeSoundRisingEdges() noexcept {const auto result=soundEdges_;soundEdges_=0;return result;}
 private:
     MemoryBus memory_;
     IoBus io_;
@@ -37,6 +39,7 @@ private:
     std::array<std::uint8_t,3> inputs_{};
     std::uint16_t shift_=0;
     std::uint8_t shiftCount_=0;
+    std::uint8_t soundPort_=0,soundEdges_=0;
     std::uint64_t cycles_=0;
     std::uint64_t halfFrames_=0;
 };
