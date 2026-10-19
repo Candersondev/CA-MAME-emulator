@@ -15,6 +15,10 @@ GunFight::GunFight():cpu_(memory_) {
         // Gun Fight has partial output decoding: shift count on A1,
         // shift data on A2; A0 drives sound (not yet synthesized).
         io_.onWrite(port,[this,port](std::uint8_t value) {
+            if(port&1) {
+                soundEdges_|=std::uint8_t(value&~soundPort_);
+                soundPort_=value;
+            }
             if(port&2) shiftCount_=value&7;
             if(port&4) shift_=std::uint16_t((std::uint16_t(value)<<8)|(shift_>>8));
         });
@@ -27,6 +31,7 @@ void GunFight::reset() {
     inputs_.fill(0);
     shift_=0;
     shiftCount_=0;
+    soundPort_=soundEdges_=0;
     cycles_=halfFrames_=0;
 }
 bool GunFight::loadRom(std::uint16_t address,std::span<const std::uint8_t> bytes) {
