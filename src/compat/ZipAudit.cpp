@@ -1,4 +1,5 @@
 #include "ca_mame/compat/ZipAudit.hpp"
+#include "ca_mame/compat/Sha1.hpp"
 #include <zlib.h>
 #include <algorithm>
 #include <array>
@@ -63,6 +64,7 @@ ZipAuditResult auditZip(const std::filesystem::path& path){
   std::array<unsigned char,32768> input{},output{};
   std::uint64_t remaining=item.packed,total=0;
   uLong crc=crc32(0L,Z_NULL,0);
+  Sha1 sha;
   bool ok=true;
   f.clear();f.seekg(static_cast<std::streamoff>(start));
   while(remaining&&ok){
@@ -70,14 +72,14 @@ ZipAuditResult auditZip(const std::filesystem::path& path){
    if(!f.read(reinterpret_cast<char*>(input.data()),static_cast<std::streamsize>(n))){ok=false;break;}
    remaining-=n;
    if(item.method==0){
-    crc=crc32(crc,input.data(),static_cast<uInt>(n));total+=n;
+    crc=crc32(crc,input.data(),static_cast<uInt>(n));sha.update(input.data(),n);total+=n;
    }else{
     stream.next_in=input.data();stream.avail_in=static_cast<uInt>(n);
     while(stream.avail_in&&ok){
      stream.next_out=output.data();stream.avail_out=static_cast<uInt>(output.size());
      const int code=inflate(&stream,Z_NO_FLUSH);
      const auto produced=output.size()-stream.avail_out;
-     crc=crc32(crc,output.data(),static_cast<uInt>(produced));total+=produced;
+     crc=crc32(crc,output.data(),static_cast<uInt>(produced));sha.update(output.data(),produced);total+=produced;
      if(total>item.unpacked|| (code!=Z_OK&&code!=Z_STREAM_END)){ok=false;break;}
      if(code==Z_STREAM_END){if(remaining||stream.avail_in)ok=false;break;}
      if(produced==0&&stream.avail_in==0)break;
@@ -87,6 +89,7 @@ ZipAuditResult auditZip(const std::filesystem::path& path){
   }
   if(item.method==8){ok=ok&&stream.total_out==item.unpacked&&stream.total_in==item.packed;inflateEnd(&stream);}
   entry.verified=ok&&total==item.unpacked&&crc==item.crc;
+  if(entry.verified)entry.sha1=sha.finish();
   out.entries.push_back(std::move(entry));
  }
  return out;
