@@ -7,10 +7,9 @@ namespace ca_mame::audio {
 // The integer quotient difference distributes fractional samples across frames.
 struct InvadersFrameClock {
     static constexpr std::uint64_t Numerator=
-        std::uint64_t(InvadersAudioSampleRate())*drivers::SpaceInvaders::HTotal*
+        std::uint64_t(44100)*drivers::SpaceInvaders::HTotal*
         drivers::SpaceInvaders::VTotal;
     static constexpr std::uint64_t Denominator=drivers::SpaceInvaders::PixelHz;
-    static constexpr std::uint32_t InvadersAudioSampleRate() noexcept {return 44100;}
     static constexpr std::uint64_t sampleDeadline(std::uint64_t frames) noexcept {
         return frames*Numerator/Denominator;
     }
