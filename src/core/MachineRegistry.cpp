@@ -1,5 +1,6 @@
 #include "ca_mame/core/MachineRegistry.hpp"
 #include "ca_mame/drivers/SpaceInvaders.hpp"
+#include "ca_mame/drivers/GunFight.hpp"
 #include <algorithm>
 #include <utility>
 namespace ca_mame {
@@ -18,6 +19,8 @@ MachineRegistry makeDefaultRegistry() {
     MachineRegistry registry;
     registry.registerMachine("invaders","Space Invaders (Intel 8080)",
         []()->std::unique_ptr<IMachine>{return std::make_unique<drivers::SpaceInvaders>();});
+    registry.registerMachine("gunfight","Gun Fight (Midway 8080, experimental)",
+        []()->std::unique_ptr<IMachine>{return std::make_unique<drivers::GunFight>();});
     return registry;
 }
 }
