@@ -52,7 +52,14 @@ std::uint64_t SpaceInvaders::runHalfFrame() {
     // CPU instructions can cross the boundary; overshoot is retained.
     // Use an absolute rational deadline to avoid accumulating fractional
     // 2 MHz / 120 Hz truncation error over long emulation sessions.
-    const auto target=std::uint64_t(++halfFrames_)*CpuHz/120;
+    const auto halfFrame=++halfFrames_;
+    // Hardware frame length is derived from the 19.968 MHz crystal and raster totals.
+    // In accurate mode, alternate deadlines at the two IRQ scanline positions.
+    const auto target=accurateTiming_
+        ? ((std::uint64_t(halfFrame/2)*FrameCycleNumerator
+            + ((halfFrame&1)?(FrameCycleNumerator*IntTrigger2/VTotal):0))
+           / FrameCycleDenominator)
+        : std::uint64_t(halfFrame)*CpuHz/120;
     const auto before=cycles_;
     while(cycles_<target)cycles_+=cpu_.step();
     cpu_.interrupt((halfFrames_&1)?1:2);
