@@ -227,7 +227,7 @@ int main(int argc,char** argv){
    SDL_RenderDebugText(renderer,x,322,clip("ROM/BIOS parent: "+(item.game.bios.empty()?std::string("none"):item.game.bios)).c_str());
    SDL_RenderDebugText(renderer,x,342,(std::string("ZIP archive: ")+(item.localArchive?"FOUND":"NOT FOUND")).c_str());
    SDL_RenderDebugText(renderer,x,358,(std::string("CHD directory: ")+(item.hasChdDirectory?"FOUND":"NOT FOUND")).c_str());
-   const auto dependencies=ca_mame::compat::DependencyInspector::inspectDetailed(item.game,std::filesystem::path(argv[2]));
+   const auto dependencies=ca_mame::compat::DependencyInspector::inspectDetailed(item.game,std::filesystem::path(argv[2]),games);
    SDL_RenderDebugText(renderer,x,374,clip("Dependencies: "+std::to_string(dependencies.items.size())+(dependencies.hasMissing?" | MISSING SETS":" | SETS PRESENT")).c_str());
    SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
    SDL_RenderDebugText(renderer,x,396,clip(feedbackGame==item.game.name?feedback:"F5: verify selected game before launch").c_str());
