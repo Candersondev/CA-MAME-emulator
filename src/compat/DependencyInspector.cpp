@@ -95,8 +95,9 @@ DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std
  auto report=inspectDetailed(game,root);
  std::unordered_map<std::string,const Game*> lookup;
  for(const auto& entry:catalog)lookup.emplace(entry.name,&entry);
- std::unordered_set<std::string> seen{game.name,game.parent,game.bios};
- std::vector<std::string> pending{game.parent,game.bios};
+ std::unordered_set<std::string> seen{game.name};
+ std::vector<std::string> pending;
+ for(const auto& initial:{game.parent,game.bios})if(!initial.empty()&&seen.insert(initial).second)pending.push_back(initial);
  for(std::size_t i=0;i<pending.size()&&i<256;++i){
   const auto name=pending[i];
   const auto found=lookup.find(name);
