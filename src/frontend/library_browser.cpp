@@ -2,6 +2,7 @@
 #include <SDL3_image/SDL_image.h>
 #include "ca_mame/compat/GameLibrary.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
+#include "ca_mame/compat/RomDiagnostics.hpp"
 #include "ca_mame/compat/AuditStore.hpp"
 #include "ca_mame/compat/LibraryIndex.hpp"
 #include "ca_mame/compat/LibraryPreferences.hpp"
@@ -50,6 +51,7 @@ int main(int argc,char** argv){
  std::string feedback="F5 verifies ROM/BIOS/CHD requirements";
  std::string feedbackGame;
  std::unordered_map<std::string,std::string> diagnostics;
+ std::unordered_map<std::string,ca_mame::compat::RomDiagnostics> reports;
  std::future<ca_mame::compat::ProcessResult> verification;
  std::string pendingGame;
  std::future<int> gameProcess;
@@ -136,9 +138,10 @@ int main(int argc,char** argv){
    const auto result=verification.get();
    const std::string game=pendingGame;
    diagnostics[game]=result.output+(result.truncated?"\n[Output truncated]":"");
+   reports[game]=ca_mame::compat::analyzeRomVerification(result.output,result.exitCode,result.truncated);
    audits.record(game,result.exitCode);audits.save(auditFile);
    feedbackGame=game;
-   feedback=result.exitCode==0?"PASS: verified by MAME":("FAIL: MAME audit exit "+std::to_string(result.exitCode));
+   feedback=ca_mame::compat::summarizeRomVerification(reports[game]);
    if(pendingLaunch&&result.exitCode==0){
     const auto plan=ca_mame::compat::MameBridge::plan(argv[3],game,std::filesystem::path(argv[2]));
     if(plan){prefs.recordLaunch(game);prefs.save(prefsFile);
@@ -226,6 +229,12 @@ int main(int argc,char** argv){
    SDL_RenderDebugText(renderer,x,374,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
    SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
    SDL_RenderDebugText(renderer,x,396,clip(feedbackGame==item.game.name?feedback:"F5: verify selected game before launch").c_str());
+   const auto report=reports.find(item.game.name);
+   if(report!=reports.end()&&!report->second.issues.empty()){
+    const auto& issues=report->second.issues;
+    SDL_SetRenderDrawColor(renderer,255,190,130,255);
+    SDL_RenderDebugText(renderer,x,404,clip("Issues: "+std::to_string(issues.size())+" (see diagnostics below)").c_str());
+   }
    const auto detail=diagnostics.find(item.game.name);
    const float diagTop=416.0f;
    const int diagRows=detailsExpanded?std::max(5,(h-460)/15):5;
