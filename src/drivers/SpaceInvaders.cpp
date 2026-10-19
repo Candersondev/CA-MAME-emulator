@@ -13,14 +13,26 @@ SpaceInvaders::SpaceInvaders() : cpu_(memory_) {
     io_.onWrite(4,[this](std::uint8_t v){shift_=std::uint16_t((std::uint16_t(v)<<8)|(shift_>>8));});
     io_.onWrite(3,[this](std::uint8_t v){recordSoundWrite(3,v);});
     io_.onWrite(5,[this](std::uint8_t v){recordSoundWrite(5,v);});
+    io_.onWrite(6,[this](std::uint8_t){watchdog_.kick(cycles_);});
+    powerOnReset();
+}
+void SpaceInvaders::powerOnReset() {
+    memory_.clear();
+    watchdogResets_=0;
     reset();
 }
+void SpaceInvaders::setWatchdogEnabled(bool enabled) noexcept {
+    watchdogEnabled_=enabled;
+    watchdog_.reset(cycles_);
+}
 void SpaceInvaders::reset() {
-    memory_.clear();cpu_.reset();
+    // Reset keeps installed ROMs. Power-on reset clears all memory.
+    memory_.clearRam();cpu_.reset();
     inputs_={0x0e,0x08,0x00,0x00};
     shift_=0;shiftOffset_=0;cycles_=0;halfFrames_=0;
     sound3_=sound5_=sound3Edges_=sound5Edges_=0;
     soundTransitions_.clear();
+    watchdog_.reset(0);
 }
 void SpaceInvaders::recordSoundWrite(std::uint8_t port,std::uint8_t value) {
     auto& previous=(port==3)?sound3_:sound5_;
@@ -62,7 +74,15 @@ std::uint64_t SpaceInvaders::runHalfFrame() {
            / PixelHz)
         : std::uint64_t(halfFrame)*CpuHz/120;
     const auto before=cycles_;
-    while(cycles_<target)cycles_+=cpu_.step();
+    while(cycles_<target) {
+        cycles_+=cpu_.step();
+        if(watchdogEnabled_ && watchdog_.check(cycles_)) {
+            ++watchdogResets_;
+            reset();
+            // Reset restarts the board timing phase; stop this slice.
+            return cycles_-before;
+        }
+    }
     cpu_.interrupt((halfFrames_&1)?1:2);
     return cycles_-before;
 }
