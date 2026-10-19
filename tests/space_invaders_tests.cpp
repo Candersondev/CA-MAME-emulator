@@ -85,6 +85,8 @@ int main() {
     expect(board.runHalfFrame()>=16666,"half-frame cycle budget");
     board.reset();
     expect(board.soundPort3()==0 && board.soundPort5()==0 && board.soundRisingEdges3()==0 && board.soundRisingEdges5()==0,"reset clears sound latches");
+    // Clear test ROMs so this scheduler check really runs NOP instructions.
+    board.powerOnReset();
     // With a NOP-filled ROM, every instruction costs four cycles. Absolute
     // 120 Hz deadlines must retain fractional-cycle phase across half-frames.
     for(unsigned frame=1;frame<=120;++frame) {
