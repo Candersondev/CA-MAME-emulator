@@ -70,12 +70,16 @@ static DependencyReport inspectWithSets(const Game& game,const std::filesystem::
   std::string expected=rom.crc;
   std::transform(expected.begin(),expected.end(),expected.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
   const bool matches=expected.empty()||expected==crc.str();
-  const bool valid=match->supported&&match->verified&&matches;
+  std::string expectedSha=rom.sha1;
+  std::transform(expectedSha.begin(),expectedSha.end(),expectedSha.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
+  const bool shaMatches=expectedSha.empty()||match->sha1==expectedSha;
+  const bool valid=match->supported&&match->verified&&matches&&shaMatches;
   report.items.push_back({rom.name,"ROM CRC32",valid?DependencyState::Found:DependencyState::Missing,
    !match->supported?"Unsupported ZIP entry compression or encryption":
    !match->verified?"Corrupted ZIP entry: calculated CRC32 does not match ZIP directory":
    !matches?"ROM CRC32 differs from MAME metadata: expected "+expected+", found "+crc.str():
-   "CRC32 matches; MAME SHA-1 and final audit still required"});
+   !shaMatches?"ROM SHA-1 differs from MAME metadata: expected "+expectedSha+", found "+match->sha1:
+   "ROM CRC32 and SHA-1 match available metadata; MAME final audit still required"});
   if(!valid)report.hasMissing=true;
  }
  for(const auto& disk:game.disks){
