@@ -91,4 +91,27 @@ DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std
  return report;
 }
 
+DependencyReport DependencyInspector::inspectDetailed(const Game& game,const std::filesystem::path& root,const std::vector<Game>& catalog){
+ auto report=inspectDetailed(game,root);
+ std::unordered_map<std::string,const Game*> lookup;
+ for(const auto& entry:catalog)lookup.emplace(entry.name,&entry);
+ std::unordered_set<std::string> seen{game.name,game.parent,game.bios};
+ std::vector<std::string> pending{game.parent,game.bios};
+ for(std::size_t i=0;i<pending.size()&&i<256;++i){
+  const auto name=pending[i];
+  const auto found=lookup.find(name);
+  if(found==lookup.end())continue;
+  const Game& ancestor=*found->second;
+  for(const auto& parent:{ancestor.parent,ancestor.bios}){
+   if(parent.empty()||!MameBridge::validDriverName(parent)||!seen.insert(parent).second)continue;
+   pending.push_back(parent);
+   const bool present=existsSet(root,parent);
+   report.items.push_back({parent,"Transitive parent/BIOS",present?DependencyState::Found:DependencyState::Missing,
+     present?"Dependency set present; verify contents with MAME":"Required ancestor set not found locally; check MAME ROM paths"});
+   if(!present)report.hasMissing=true;
+  }
+ }
+ return report;
+}
+
 }
