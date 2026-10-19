@@ -55,10 +55,11 @@ std::uint64_t SpaceInvaders::runHalfFrame() {
     const auto halfFrame=++halfFrames_;
     // Hardware frame length is derived from the 19.968 MHz crystal and raster totals.
     // In accurate mode, alternate deadlines at the two IRQ scanline positions.
+    const auto frameIndex=std::uint64_t((halfFrame-1)/2);
+    const auto scanline=(halfFrame&1)?IntTrigger1:IntTrigger2;
     const auto target=accurateTiming_
-        ? ((std::uint64_t(halfFrame/2)*FrameCycleNumerator
-            + ((halfFrame&1)?(FrameCycleNumerator*IntTrigger2/VTotal):0))
-           / FrameCycleDenominator)
+        ? ((frameIndex*VTotal+scanline)*std::uint64_t(HardwareCpuHz)*HTotal
+           / PixelHz)
         : std::uint64_t(halfFrame)*CpuHz/120;
     const auto before=cycles_;
     while(cycles_<target)cycles_+=cpu_.step();
