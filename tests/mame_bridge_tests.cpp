@@ -14,7 +14,7 @@ int main(){
  if(MameBridge::launch({{}, {}})!=-1)return 7;
  if(MameBridge::capture({{}, {}}).exitCode!=-1)return 11;
 #ifdef _WIN32
- const ca_mame::compat::LaunchPlan capturePlan{"cmd.exe",{"/D","/C","echo CA_MAME_CAPTURE_TEST"}};
+ const ca_mame::compat::LaunchPlan capturePlan{"C:\\Windows\\System32\\cmd.exe",{"/D","/C","echo CA_MAME_CAPTURE_TEST"}};
 #else
  const ca_mame::compat::LaunchPlan capturePlan{"/bin/echo",{"CA_MAME_CAPTURE_TEST"}};
 #endif
