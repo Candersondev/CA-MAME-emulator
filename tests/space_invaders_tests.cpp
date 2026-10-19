@@ -26,6 +26,17 @@ int main() {
     expect(board.soundRisingEdges3()==0x04,"sound bit retriggers after falling edge");
     board.writePort(5,0x81);
     expect(board.soundPort5()==0x81 && board.soundRisingEdges5()==0x81,"sound port 5 rising edges");
+    {
+        const auto transitions=board.takeSoundTransitions();
+        expect(!transitions.empty(),"sound line transitions recorded");
+        bool sawRise=false,sawFall=false;
+        for(const auto& event:transitions) {
+            if(event.port==3 && event.bit==0 && event.active) sawRise=true;
+            if(event.port==3 && event.bit==0 && !event.active) sawFall=true;
+        }
+        expect(sawRise && sawFall,"sound line captures both rising and falling edges");
+        expect(board.takeSoundTransitions().empty(),"sound event queue drains once");
+    }
     board.setInput(1,0x91);
     expect(board.readPort(1)==0x91,"input port 1");
     std::array<std::uint8_t,2> rom={0x00,0x76};
