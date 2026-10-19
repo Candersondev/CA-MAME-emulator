@@ -15,6 +15,7 @@ endif()
 add_library(ca_mame_core
     src/compat/MameBridge.cpp
     src/compat/RomDiagnostics.cpp
+    src/compat/DependencyInspector.cpp
     src/compat/GameLibrary.cpp
     src/compat/AuditStore.cpp
     src/compat/LibraryIndex.cpp
@@ -73,6 +74,9 @@ if(BUILD_TESTING)
     add_executable(game-library-tests tests/game_library_tests.cpp)
     target_link_libraries(game-library-tests PRIVATE ca_mame_core)
     add_test(NAME game_library_tests COMMAND game-library-tests)
+    add_executable(dependency-inspector-tests tests/dependency_inspector_tests.cpp)
+    target_link_libraries(dependency-inspector-tests PRIVATE ca_mame_core)
+    add_test(NAME dependency_inspector_tests COMMAND dependency-inspector-tests)
     add_executable(rom-diagnostics-tests tests/rom_diagnostics_tests.cpp)
     target_link_libraries(rom-diagnostics-tests PRIVATE ca_mame_core)
     add_test(NAME rom_diagnostics_tests COMMAND rom-diagnostics-tests)
