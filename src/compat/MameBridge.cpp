@@ -154,4 +154,75 @@ int MameBridge::launch(const LaunchPlan& p){
 #endif
 }
 
+ProcessResult MameBridge::capture(const LaunchPlan& p,std::size_t maxBytes){
+ ProcessResult result;
+ if(p.executable.empty())return result;
+#ifdef _WIN32
+ SECURITY_ATTRIBUTES security{sizeof(SECURITY_ATTRIBUTES),nullptr,TRUE};
+ HANDLE readPipe=nullptr,writePipe=nullptr;
+ if(!CreatePipe(&readPipe,&writePipe,&security,0))return result;
+ SetHandleInformation(readPipe,HANDLE_FLAG_INHERIT,0);
+ auto quote=[](const std::wstring& a){
+  std::wstring out=L"\"";std::size_t slashes=0;
+  for(wchar_t c:a){
+   if(c==L'\\'){++slashes;continue;}
+   if(c==L'"'){out.append(slashes*2+1,L'\\');out+=L'"';slashes=0;continue;}
+   out.append(slashes,L'\\');slashes=0;out+=c;
+  }
+  out.append(slashes*2,L'\\');out+=L'"';return out;
+ };
+ std::wstring command=quote(p.executable.wstring());
+ for(const auto& arg:p.arguments)command+=L" "+quote(std::filesystem::path(arg).wstring());
+ std::vector<wchar_t> mutableCommand(command.begin(),command.end());mutableCommand.push_back(0);
+ STARTUPINFOW startup{};startup.cb=sizeof(startup);
+ startup.dwFlags=STARTF_USESTDHANDLES;
+ startup.hStdOutput=writePipe;startup.hStdError=writePipe;
+ startup.hStdInput=GetStdHandle(STD_INPUT_HANDLE);
+ PROCESS_INFORMATION process{};
+ const auto exe=p.executable.wstring();
+ const BOOL started=CreateProcessW(exe.c_str(),mutableCommand.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&process);
+ CloseHandle(writePipe);
+ if(!started){CloseHandle(readPipe);return result;}
+ char buffer[4096];DWORD count=0;
+ while(ReadFile(readPipe,buffer,sizeof(buffer),&count,nullptr)&&count){
+  const auto room=maxBytes>result.output.size()?maxBytes-result.output.size():0;
+  result.output.append(buffer,std::min<std::size_t>(room,count));
+  if(count>room)result.truncated=true;
+ }
+ CloseHandle(readPipe);
+ WaitForSingleObject(process.hProcess,INFINITE);
+ DWORD code=0;
+ if(GetExitCodeProcess(process.hProcess,&code))result.exitCode=static_cast<int>(code);
+ CloseHandle(process.hThread);CloseHandle(process.hProcess);
+#else
+ int pipes[2];
+ if(pipe(pipes)!=0)return result;
+ std::vector<std::string> args;args.reserve(p.arguments.size()+1);
+ args.push_back(p.executable.string());
+ args.insert(args.end(),p.arguments.begin(),p.arguments.end());
+ std::vector<char*> argv;argv.reserve(args.size()+1);
+ for(auto& a:args)argv.push_back(a.data());
+ argv.push_back(nullptr);
+ const pid_t pid=fork();
+ if(pid<0){close(pipes[0]);close(pipes[1]);return result;}
+ if(pid==0){
+  close(pipes[0]);
+  if(dup2(pipes[1],STDOUT_FILENO)<0||dup2(pipes[1],STDERR_FILENO)<0)_exit(127);
+  close(pipes[1]);execvp(argv[0],argv.data());_exit(127);
+ }
+ close(pipes[1]);
+ char buffer[4096];ssize_t count=0;
+ while((count=read(pipes[0],buffer,sizeof(buffer)))>0){
+  const auto room=maxBytes>result.output.size()?maxBytes-result.output.size():0;
+  result.output.append(buffer,std::min<std::size_t>(room,static_cast<std::size_t>(count)));
+  if(static_cast<std::size_t>(count)>room)result.truncated=true;
+ }
+ close(pipes[0]);
+ int status=0;
+ while(waitpid(pid,&status,0)<0){if(errno!=EINTR)return result;}
+ if(WIFEXITED(status))result.exitCode=WEXITSTATUS(status);
+#endif
+ return result;
+}
+
 }
