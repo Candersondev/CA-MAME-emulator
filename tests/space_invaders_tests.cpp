@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iostream>
 #include "ca_mame/drivers/SpaceInvaders.hpp"
+#include "ca_mame/audio/InvadersSoundSignals.hpp"
 namespace {
 int failures=0;
 void expect(bool ok,const char* label) {
@@ -10,6 +11,18 @@ void expect(bool ok,const char* label) {
 }
 int main() {
     ca_mame::drivers::SpaceInvaders board;
+    using ca_mame::audio::InvadersSignal;
+    using ca_mame::audio::decodeInvadersSignal;
+    expect(decodeInvadersSignal(3,0)==InvadersSignal::UfoLoop,"port 3 bit 0 UFO loop");
+    expect(decodeInvadersSignal(3,1)==InvadersSignal::Shot,"port 3 bit 1 shot");
+    expect(decodeInvadersSignal(3,2)==InvadersSignal::BaseExplosion,"port 3 bit 2 explosion");
+    expect(decodeInvadersSignal(3,3)==InvadersSignal::InvaderHit,"port 3 bit 3 invader hit");
+    expect(decodeInvadersSignal(3,4)==InvadersSignal::BonusBase,"port 3 bit 4 bonus base");
+    expect(decodeInvadersSignal(5,0)==InvadersSignal::Fleet1,"port 5 bit 0 fleet 1");
+    expect(decodeInvadersSignal(5,3)==InvadersSignal::Fleet4,"port 5 bit 3 fleet 4");
+    expect(decodeInvadersSignal(5,4)==InvadersSignal::UfoHit,"port 5 bit 4 UFO hit");
+    expect(decodeInvadersSignal(5,5)==InvadersSignal::FlipScreen,"port 5 bit 5 flip screen");
+    expect(decodeInvadersSignal(5,7)==InvadersSignal::Unknown,"unmapped port bit");
     board.writePort(4,0xaa);
     board.writePort(4,0x55);
     board.writePort(2,2);
