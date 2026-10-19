@@ -78,9 +78,11 @@ std::uint64_t SpaceInvaders::runHalfFrame() {
         cycles_+=cpu_.step();
         if(watchdogEnabled_ && watchdog_.check(cycles_)) {
             ++watchdogResets_;
+            const auto cyclesBeforeReset=cycles_-before;
             reset();
-            // Reset restarts the board timing phase; stop this slice.
-            return cycles_-before;
+            // A watchdog reset restarts the board clock; report the work
+            // completed before reset without unsigned subtraction underflow.
+            return cyclesBeforeReset;
         }
     }
     cpu_.interrupt((halfFrames_&1)?1:2);
