@@ -27,9 +27,11 @@ add_library(ca_mame_core
     src/rom/RomManager.cpp
     src/bus/MemoryBus.cpp
     src/cpu/Intel8080.cpp
+    src/cpu/Motorola6809.cpp
     src/cpu/PowerPC602.cpp
     src/drivers/SpaceInvaders.cpp
     src/drivers/GunFight.cpp
+    src/drivers/Williams6809.cpp
 )
 target_link_libraries(ca_mame_core PUBLIC ZLIB::ZLIB)
 target_include_directories(ca_mame_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -67,6 +69,9 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(motorola6809-tests tests/motorola6809_tests.cpp)
+    target_link_libraries(motorola6809-tests PRIVATE ca_mame_core)
+    add_test(NAME motorola6809_tests COMMAND motorola6809-tests)
     add_executable(native-launch-plan-tests tests/native_launch_plan_tests.cpp)
     target_link_libraries(native-launch-plan-tests PRIVATE ca_mame_core)
     add_test(NAME native_launch_plan_tests COMMAND native-launch-plan-tests)
