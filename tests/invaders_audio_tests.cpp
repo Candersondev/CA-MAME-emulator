@@ -31,5 +31,16 @@ int main() {
     audio.apply({InvadersSignal::FlipScreen,true,0});
     audio.render(samples);
     for(float v:samples) if(v!=0.0f) return 7;
+    audio.reset();
+    std::array<float,100> timed{};
+    const std::array<InvadersSoundEvent,1> startHalfway={{{InvadersSignal::UfoLoop,true,50}}};
+    audio.renderTimed(timed,startHalfway,0,100);
+    for(std::size_t i=0;i<50;++i) if(timed[i]!=0.0f) return 8;
+    bool heard=false;
+    for(std::size_t i=50;i<100;++i) heard|=timed[i]!=0.0f;
+    if(!heard) return 9;
+    const std::array<InvadersSoundEvent,1> stopHalfway={{{InvadersSignal::UfoLoop,false,150}}};
+    audio.renderTimed(timed,stopHalfway,100,200);
+    for(std::size_t i=50;i<100;++i) if(timed[i]!=0.0f) return 10;
     return 0;
 }
