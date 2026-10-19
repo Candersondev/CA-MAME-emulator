@@ -8,6 +8,9 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <future>
+#include <chrono>
+#include <unordered_map>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -46,6 +49,19 @@ int main(int argc,char** argv){
  std::size_t selected=0,offset=0;
  std::string feedback="F5 verifies ROM/BIOS/CHD requirements";
  std::string feedbackGame;
+ std::unordered_map<std::string,std::string> diagnostics;
+ std::future<ca_mame::compat::ProcessResult> verification;
+ std::string pendingGame;
+ bool pendingLaunch=false;
+ auto startVerification=[&](const std::string& game,bool launch){
+  if(verification.valid()){feedbackGame=game;feedback="Verification already running";return;}
+  const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],game,std::filesystem::path(argv[2]));
+  feedbackGame=game;
+  if(!plan){feedback="BLOCKED: invalid verification command";return;}
+  pendingGame=game;pendingLaunch=launch;
+  feedback="Verifying with MAME in background...";
+  verification=std::async(std::launch::async,[plan=*plan](){return ca_mame::compat::MameBridge::capture(plan);});
+ };
  ca_mame::compat::LibraryIndex index(scan);
  auto filtered=index.find(search,localOnly);
  auto refine=[&](){filtered.erase(std::remove_if(filtered.begin(),filtered.end(),[&](std::size_t i){const auto& id=scan.entries[i].game.name;return (favoritesOnly&&!prefs.favorite(id))||(recentOnly&&std::find(prefs.recent().begin(),prefs.recent().end(),id)==prefs.recent().end());}),filtered.end());};
@@ -56,23 +72,9 @@ int main(int argc,char** argv){
  };
  auto launchSelected=[&](){
   if(filtered.empty())return;
-  const auto& item=scan.entries[filtered[selected]];
-  if(!item.game.runnable){std::cerr<<"MAME marks driver non-runnable: "<<item.game.name<<"\n";return;}
-  const auto verify=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],item.game.name,std::filesystem::path(argv[2]));
-  if(!verify){feedbackGame=item.game.name;feedback="BLOCKED: invalid verification command";return;}
-  const int auditCode=ca_mame::compat::MameBridge::launch(*verify);
-  feedbackGame=item.game.name;
-  feedback=auditCode==0?"PASS: ROM verification succeeded; launching MAME":("FAIL: MAME verification exit "+std::to_string(auditCode)+"; inspect console output");
-  audits.record(item.game.name,auditCode);
-  audits.save(auditFile);
-  if(auditCode!=0){std::cerr<<"ROM/BIOS/CHD verification failed for "<<item.game.name<<" (exit "<<auditCode<<"). Check MAME dependencies.\n";return;}
-  const auto plan=ca_mame::compat::MameBridge::plan(argv[3],item.game.name,std::filesystem::path(argv[2]));
-  if(!plan){feedback="BLOCKED: invalid launch command";return;}
-  prefs.recordLaunch(item.game.name);prefs.save(prefsFile);
-  SDL_HideWindow(window);
-  const int result=ca_mame::compat::MameBridge::launch(*plan);
-  SDL_ShowWindow(window);
-  std::cerr<<"MAME exited with status "<<result<<"\n";
+  const auto& game=scan.entries[filtered[selected]].game;
+  if(!game.runnable){feedbackGame=game.name;feedback="BLOCKED: MAME marks driver non-runnable";return;}
+  startVerification(game.name,true);
  };
  while(running){
   SDL_Event e;
@@ -113,19 +115,30 @@ int main(int argc,char** argv){
      case SDLK_PAGEDOWN:selected=std::min(selected+20,filtered.empty()?std::size_t(0):filtered.size()-1);break;
      case SDLK_PAGEUP:selected=selected>20?selected-20:0;break;
      case SDLK_F5:
-      if(!filtered.empty()){
-       const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
-       if(plan){feedbackGame=scan.entries[filtered[selected]].game.name;feedback="Verifying ROM/BIOS/CHD with MAME...";
-        const int code=ca_mame::compat::MameBridge::launch(*plan);
-        feedback=code==0?"PASS: MAME verification succeeded":("FAIL: MAME verification exit "+std::to_string(code)+"; inspect console output");
-        audits.record(scan.entries[filtered[selected]].game.name,code);
-        if(!audits.save(auditFile))std::cerr<<"Failed to save audit status\\n";
-        std::cerr<<"MAME ROM verification exit status: "<<code<<"\\n";}
-      }break;
+      if(!filtered.empty())startVerification(scan.entries[filtered[selected]].game.name,false);
+      break;
      case SDLK_RETURN:case SDLK_KP_ENTER:launchSelected();break;
      default:break;
     }
    }
+  }
+  if(verification.valid()&&verification.wait_for(std::chrono::seconds(0))==std::future_status::ready){
+   const auto result=verification.get();
+   const std::string game=pendingGame;
+   diagnostics[game]=result.output+(result.truncated?"\n[Output truncated]":"");
+   audits.record(game,result.exitCode);audits.save(auditFile);
+   feedbackGame=game;
+   feedback=result.exitCode==0?"PASS: verified by MAME":("FAIL: MAME audit exit "+std::to_string(result.exitCode));
+   if(pendingLaunch&&result.exitCode==0){
+    const auto plan=ca_mame::compat::MameBridge::plan(argv[3],game,std::filesystem::path(argv[2]));
+    if(plan){prefs.recordLaunch(game);prefs.save(prefsFile);
+     SDL_HideWindow(window);
+     const int code=ca_mame::compat::MameBridge::launch(*plan);
+     SDL_ShowWindow(window);
+     feedback=code==0?"MAME exited normally":("LAUNCH FAILED: exit "+std::to_string(code));
+    }else feedback="BLOCKED: invalid launch command";
+   }
+   pendingLaunch=false;
   }
   int w=1200,h=760;SDL_GetWindowSize(window,&w,&h);
   const int listWidth=std::max(380,w*58/100);
@@ -200,7 +213,16 @@ int main(int argc,char** argv){
    SDL_RenderDebugText(renderer,x,374,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
    SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
    SDL_RenderDebugText(renderer,x,396,clip(feedbackGame==item.game.name?feedback:"F5: verify selected game before launch").c_str());
-   SDL_FRect artRect{x,424,std::max(1.0f,available),static_cast<float>(std::max(80,h-456))};
+   const auto detail=diagnostics.find(item.game.name);
+   if(detail!=diagnostics.end()){
+    std::istringstream lines(detail->second);std::string line;
+    int count=0;
+    while(count<5&&std::getline(lines,line)){
+     if(!line.empty()&&line.back()=='\r')line.pop_back();
+     SDL_RenderDebugText(renderer,x,416+count*15,clip(line).c_str());++count;
+    }
+   }
+   SDL_FRect artRect{x,detail==diagnostics.end()?424.0f:502.0f,std::max(1.0f,available),static_cast<float>(std::max(80,h-(detail==diagnostics.end()?456:534)))};
    SDL_SetRenderDrawColor(renderer,19,25,38,255);SDL_RenderFillRect(renderer,&artRect);
    if(artwork){
     float tw=0,th=0;
