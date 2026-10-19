@@ -14,6 +14,13 @@ int main() {
     gun.writePort(4,0x55);
     gun.writePort(2,2);
     if(gun.readPort(3)!=0x56) return 4;
+    gun.writePort(1,0x05);
+    if(gun.soundPort()!=0x05 || gun.takeSoundRisingEdges()!=0x05) return 12;
+    if(gun.takeSoundRisingEdges()!=0) return 13;
+    gun.writePort(7,0x01);
+    if(gun.soundPort()!=0x01 || gun.takeSoundRisingEdges()!=0) return 14;
+    gun.writePort(3,0x05);
+    if(gun.takeSoundRisingEdges()!=0x04) return 15;
     if(gun.runFrame()==0) return 5;
     const auto registry=ca_mame::makeDefaultRegistry();
     auto machine=registry.create("gunfight");
