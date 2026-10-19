@@ -12,7 +12,15 @@ namespace ca_mame::drivers {
 class SpaceInvaders final : public IMachine {
 public:
     static constexpr std::size_t Width=224, Height=256;
-    static constexpr std::uint32_t CpuHz=2000000;
+    static constexpr std::uint32_t MasterHz=19968000;
+    static constexpr std::uint32_t CpuHz=MasterHz/10;
+    static constexpr std::uint32_t PixelHz=MasterHz/4;
+    static constexpr std::uint32_t HTotal=0x140;
+    static constexpr std::uint32_t VTotal=0x106;
+    static constexpr std::uint32_t IntTrigger1=0x080;
+    static constexpr std::uint32_t IntTrigger2=0x0da;
+    static constexpr std::uint64_t FrameCycleNumerator=std::uint64_t(CpuHz)*HTotal*VTotal;
+    static constexpr std::uint32_t FrameCycleDenominator=PixelHz;
     SpaceInvaders();
     std::string_view driverId() const noexcept override { return "invaders"; }
     void reset() override;
