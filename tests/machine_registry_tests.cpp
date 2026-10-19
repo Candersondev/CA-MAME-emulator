@@ -6,11 +6,12 @@ void check(bool ok,const char* name) {if(!ok){std::cerr<<"FAIL: "<<name<<"\n";++
 }
 int main() {
     auto registry=ca_mame::makeDefaultRegistry();
-    check(registry.entries().size()==2,"registered native driver count");
+    check(registry.entries().size()==3,"registered native driver count");
     check(registry.entries()[0].id=="invaders","driver metadata");
     check(!registry.registerMachine("invaders","duplicate",[]()->std::unique_ptr<ca_mame::IMachine>{return nullptr;}),"duplicate rejected");
     check(!registry.registerMachine("","invalid",[]()->std::unique_ptr<ca_mame::IMachine>{return nullptr;}),"empty ID rejected");
     check(registry.create("gunfight")!=nullptr,"Gun Fight registered");
+    check(registry.create("williams6809")!=nullptr,"Williams 6809 experimental driver registered");
     check(!registry.create("unknown"),"unknown driver rejected");
     auto machine=registry.create("invaders");
     check(machine && machine->driverId()=="invaders","registered board instantiation");
