@@ -1,5 +1,6 @@
 #include "ca_mame/drivers/SpaceInvaders.hpp"
 #include <algorithm>
+#include <utility>
 namespace ca_mame::drivers {
 SpaceInvaders::SpaceInvaders() : cpu_(memory_) {
     memory_.configureSpaceInvadersMap();
@@ -10,8 +11,8 @@ SpaceInvaders::SpaceInvaders() : cpu_(memory_) {
     io_.onRead(3,[this]{return std::uint8_t((shift_>>(8-shiftOffset_))&0xff);});
     io_.onWrite(2,[this](std::uint8_t v){shiftOffset_=v&7;});
     io_.onWrite(4,[this](std::uint8_t v){shift_=std::uint16_t((std::uint16_t(v)<<8)|(shift_>>8));});
-    io_.onWrite(3,[this](std::uint8_t v){sound3Edges_|=std::uint8_t(v&~sound3_);sound3_=v;});
-    io_.onWrite(5,[this](std::uint8_t v){sound5Edges_|=std::uint8_t(v&~sound5_);sound5_=v;});
+    io_.onWrite(3,[this](std::uint8_t v){recordSoundWrite(3,v);});
+    io_.onWrite(5,[this](std::uint8_t v){recordSoundWrite(5,v);});
     reset();
 }
 void SpaceInvaders::reset() {
@@ -19,6 +20,23 @@ void SpaceInvaders::reset() {
     inputs_={0x0e,0x08,0x00,0x00};
     shift_=0;shiftOffset_=0;cycles_=0;halfFrames_=0;
     sound3_=sound5_=sound3Edges_=sound5Edges_=0;
+    soundTransitions_.clear();
+}
+void SpaceInvaders::recordSoundWrite(std::uint8_t port,std::uint8_t value) {
+    auto& previous=(port==3)?sound3_:sound5_;
+    auto& edges=(port==3)?sound3Edges_:sound5Edges_;
+    edges|=std::uint8_t(value&~previous);
+    const auto changed=std::uint8_t(value^previous);
+    for(unsigned bit=0;bit<8;++bit) {
+        if(changed&(1u<<bit))
+            soundTransitions_.push_back({port,std::uint8_t(bit),(value&(1u<<bit))!=0,cycles_});
+    }
+    previous=value;
+}
+std::vector<SoundTransition> SpaceInvaders::takeSoundTransitions() {
+    auto result=std::move(soundTransitions_);
+    soundTransitions_.clear();
+    return result;
 }
 void SpaceInvaders::setInput(std::uint8_t port,std::uint8_t value) {
     if(port<inputs_.size())inputs_[port]=value;
