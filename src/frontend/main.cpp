@@ -5,11 +5,18 @@
 #include "ca_mame/drivers/KonamiM2.hpp"
 #include <string_view>
 #include "ca_mame/core/MachineRegistry.hpp"
+#include "ca_mame/rom/MidwayGameDetector.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
 #include "ca_mame/compat/GameLibrary.hpp"
 #include <fstream>
 #include <sstream>
 int main(int argc,char** argv) {
+    if(argc==3 && std::string_view(argv[1])=="--native-detect") {
+        const auto driver=ca_mame::rom::detectMidway8080Game(argv[2]);
+        if(driver.empty()){std::cerr<<"Unknown native arcade ROM; no hardware selected\\n";return 2;}
+        std::cout<<"Native arcade hardware: "<<driver<<"\\n";
+        return 0;
+    }
     if(argc>=4 && std::string_view(argv[1])=="--mame-library"){
         std::ifstream input(argv[2],std::ios::binary);
         if(!input){std::cerr<<"Unable to open MAME XML catalog\n";return 2;}
