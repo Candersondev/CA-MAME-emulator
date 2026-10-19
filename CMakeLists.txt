@@ -17,6 +17,7 @@ add_library(ca_mame_core
     src/compat/RomDiagnostics.cpp
     src/compat/DependencyInspector.cpp
     src/compat/ZipAudit.cpp
+    src/compat/Sha1.cpp
     src/compat/GameLibrary.cpp
     src/compat/AuditStore.cpp
     src/compat/LibraryIndex.cpp
@@ -75,6 +76,9 @@ if(BUILD_TESTING)
     add_executable(game-library-tests tests/game_library_tests.cpp)
     target_link_libraries(game-library-tests PRIVATE ca_mame_core)
     add_test(NAME game_library_tests COMMAND game-library-tests)
+    add_executable(sha1-tests tests/sha1_tests.cpp)
+    target_link_libraries(sha1-tests PRIVATE ca_mame_core)
+    add_test(NAME sha1_tests COMMAND sha1-tests)
     add_executable(dependency-inspector-tests tests/dependency_inspector_tests.cpp)
     target_link_libraries(dependency-inspector-tests PRIVATE ca_mame_core)
     add_test(NAME dependency_inspector_tests COMMAND dependency-inspector-tests)
