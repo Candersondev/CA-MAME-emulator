@@ -7,6 +7,7 @@
 #include "ca_mame/compat/AuditStore.hpp"
 #include "ca_mame/compat/LibraryIndex.hpp"
 #include "ca_mame/compat/LibraryPreferences.hpp"
+#include "ca_mame/rom/NativeLaunchPlan.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -57,6 +58,8 @@ int main(int argc,char** argv){
  std::string pendingGame;
  std::future<int> gameProcess;
  std::string runningGame;
+ bool runningNative=false;
+ const auto nativeExecutable=std::filesystem::absolute(std::filesystem::path(argv[0])).parent_path()/"ca-mame-sdl";
  std::unordered_map<std::string,std::size_t> diagnosticScroll;
  bool detailsExpanded=false;
  bool pendingLaunch=false;
@@ -82,6 +85,14 @@ int main(int argc,char** argv){
   if(filtered.empty())return;
   const auto& game=scan.entries[filtered[selected]].game;
   if(!game.runnable){feedbackGame=game.name;feedback="BLOCKED: MAME marks driver non-runnable";return;}
+  if(const auto native=ca_mame::rom::nativeLaunchPlan(game.name,argv[2],nativeExecutable)) {
+   if(verification.valid()||gameProcess.valid()){feedbackGame=game.name;feedback="Another operation is already running";return;}
+   prefs.recordLaunch(game.name);prefs.save(prefsFile);
+   runningGame=game.name;runningNative=true;feedbackGame=game.name;
+   feedback="Native hardware running (gameplay unverified)";
+   gameProcess=std::async(std::launch::async,[plan=*native](){return ca_mame::compat::MameBridge::launch(plan);});
+   return;
+  }
   startVerification(game.name,true);
  };
  while(running){
@@ -146,7 +157,7 @@ int main(int argc,char** argv){
    if(pendingLaunch&&result.exitCode==0){
     const auto plan=ca_mame::compat::MameBridge::plan(argv[3],game,std::filesystem::path(argv[2]));
     if(plan){prefs.recordLaunch(game);prefs.save(prefsFile);
-     runningGame=game;feedback="MAME running (launcher remains responsive)";
+     runningGame=game;runningNative=false;feedback="MAME running (launcher remains responsive)";
      gameProcess=std::async(std::launch::async,[plan=*plan](){return ca_mame::compat::MameBridge::launch(plan);});
     }else feedback="BLOCKED: invalid launch command";
    }
@@ -154,8 +165,9 @@ int main(int argc,char** argv){
   }
   if(gameProcess.valid()&&gameProcess.wait_for(std::chrono::seconds(0))==std::future_status::ready){
    const int code=gameProcess.get();feedbackGame=runningGame;
-   feedback=code==0?"MAME exited normally":("LAUNCH FAILED: MAME exit "+std::to_string(code));
-   runningGame.clear();
+   feedback=code==0?(runningNative?"Native emulator exited normally":"MAME exited normally"):
+    ("LAUNCH FAILED: "+std::string(runningNative?"native emulator":"MAME")+" exit "+std::to_string(code));
+   runningGame.clear();runningNative=false;
   }
   int w=1200,h=760;SDL_GetWindowSize(window,&w,&h);
   const int listWidth=std::max(380,w*58/100);
@@ -169,7 +181,7 @@ int main(int argc,char** argv){
   const std::string title="CA-MAME ARCADE LIBRARY  /  "+std::to_string(filtered.size())+" games";
   SDL_RenderDebugText(renderer,16,12,title.c_str());
   SDL_RenderDebugText(renderer,16,32,("Search: "+search+"_").c_str());
-  SDL_RenderDebugText(renderer,16,52,"TAB local | F favorites | R recent | SPACE star | ENTER/A verify+launch | F5 audit");
+  SDL_RenderDebugText(renderer,16,52,"TAB local | F favorites | R recent | SPACE star | ENTER/A auto-launch | F5 MAME audit");
   SDL_RenderDebugText(renderer,16,68,"D-pad/arrows navigate | X favorite | click select | ESC exit");
   SDL_SetRenderDrawColor(renderer,26,33,48,255);
   SDL_FRect panel{static_cast<float>(listWidth),90,static_cast<float>(std::max(0,w-listWidth)),static_cast<float>(std::max(0,h-90))};
@@ -230,7 +242,9 @@ int main(int argc,char** argv){
    const auto dependencies=ca_mame::compat::DependencyInspector::inspectDetailed(item.game,std::filesystem::path(argv[2]),games);
    SDL_RenderDebugText(renderer,x,374,clip("Dependencies: "+std::to_string(dependencies.items.size())+(dependencies.hasMissing?" | MISSING SETS":" | SETS PRESENT")).c_str());
    SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
-   SDL_RenderDebugText(renderer,x,396,clip(feedbackGame==item.game.name?feedback:"F5: verify selected game before launch").c_str());
+   const bool nativeReady=ca_mame::rom::nativeLaunchPlan(item.game.name,argv[2],nativeExecutable).has_value();
+   SDL_RenderDebugText(renderer,x,388,clip(nativeReady?"Launch: CA-MAME native hardware":"Launch: external MAME fallback").c_str());
+   SDL_RenderDebugText(renderer,x,404,clip(feedbackGame==item.game.name?feedback:"ENTER: launch selected game").c_str());
    const auto report=reports.find(item.game.name);
    if(report!=reports.end()&&!report->second.issues.empty()){
     const auto& issues=report->second.issues;
