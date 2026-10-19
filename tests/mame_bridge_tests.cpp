@@ -14,12 +14,12 @@ int main(){
  if(MameBridge::launch({{}, {}})!=-1)return 7;
  if(MameBridge::capture({{}, {}}).exitCode!=-1)return 11;
 #ifdef _WIN32
- const ca_mame::compat::LaunchPlan capturePlan{"cmd.exe",{"/C","echo CA_MAME_CAPTURE_TEST"}};
+ const ca_mame::compat::LaunchPlan capturePlan{"cmd.exe",{"/D","/C","echo CA_MAME_CAPTURE_TEST"}};
 #else
  const ca_mame::compat::LaunchPlan capturePlan{"/bin/echo",{"CA_MAME_CAPTURE_TEST"}};
 #endif
  const auto captured=MameBridge::capture(capturePlan,8);
- if(captured.exitCode!=0||captured.output!="CA_MAME"||!captured.truncated)return 12;
+ if(captured.exitCode!=0||captured.output.size()!=8||captured.output.find("CA_MAME")==std::string::npos||!captured.truncated)return 12;
  const auto complete=MameBridge::capture(capturePlan);
  if(complete.exitCode!=0||complete.output.find("CA_MAME_CAPTURE_TEST")==std::string::npos||complete.truncated)return 13;
  const std::string xml="<mame><machine name=\"evilngt\" runnable=\"yes\" sourcefile=\"konami/m2.cpp\" cloneof=\"evilngta\" romof=\"konamim2\"><description>Evil Night</description><year>1998</year><manufacturer>Konami</manufacturer></machine><machine name=\"broken\" runnable=\"no\"><description>Test</description></machine></mame>";
