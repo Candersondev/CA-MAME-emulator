@@ -11,5 +11,6 @@ class DependencyInspector {
 public:
  static DependencyReport inspect(const Game& game,const std::filesystem::path& romDirectory);
  static DependencyReport inspectDetailed(const Game& game,const std::filesystem::path& romDirectory);
+ static DependencyReport inspectDetailed(const Game& game,const std::filesystem::path& romDirectory,const std::vector<Game>& catalog);
 };
 } // namespace ca_mame::compat
