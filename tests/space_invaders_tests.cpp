@@ -96,6 +96,31 @@ int main() {
     expect(video[255*224]==0xffffffffu,"video bit 0 maps to lower-left pixel");
     expect(video[248*224]==0xffffffffu,"video bit 7 maps to eighth pixel");
     expect(video[254*224]==0xff000000u,"unset video bits remain black");
+    // Opt-in hardware raster clock: IRQ boundaries are scanlines 128 and 218
+    // of each 262-line frame, using the Midway 19.968 MHz master crystal.
+    {
+        using Board=ca_mame::drivers::SpaceInvaders;
+        Board raster;
+        expect(!raster.accurateTiming(),"legacy scheduler remains default");
+        raster.setAccurateTiming(true);
+        expect(raster.accurateTiming(),"hardware raster scheduler enabled");
+        for(std::uint64_t half=1;half<=240;++half) {
+            const auto prior=raster.elapsedCycles();
+            const auto executed=raster.runHalfFrame();
+            const auto frameIndex=(half-1)/2;
+            const auto scanline=(half&1)?Board::IntTrigger1:Board::IntTrigger2;
+            const auto deadline=((frameIndex*Board::VTotal+scanline)
+                *std::uint64_t(Board::HardwareCpuHz)*Board::HTotal)/Board::PixelHz;
+            expect(raster.elapsedCycles()>=deadline && raster.elapsedCycles()<deadline+4,
+                "hardware raster deadline within one NOP instruction");
+            expect(executed==raster.elapsedCycles()-prior,
+                "hardware raster step accounting");
+        }
+        raster.reset();
+        expect(raster.accurateTiming(),"reset preserves selected timing mode");
+        expect(raster.elapsedCycles()==0 && raster.elapsedHalfFrames()==0,
+            "reset clears raster phase");
+    }
     // Board-level interrupt delivery: each half-frame requests alternating
     // RST 1 (0x08) and RST 2 (0x10), acknowledged at the next CPU step.
     {
