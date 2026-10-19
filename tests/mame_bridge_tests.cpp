@@ -1,6 +1,7 @@
 #include "ca_mame/compat/MameBridge.hpp"
 #include <string>
 #include <sstream>
+#include <filesystem>
 int main(){
  using ca_mame::compat::MameBridge;
  if(!MameBridge::validDriverName("evilngt")||MameBridge::validDriverName("../evilngt")||MameBridge::validDriverName("x;rm"))return 1;
@@ -11,6 +12,16 @@ int main(){
  if(!verify||verify->arguments.size()!=4||verify->arguments[0]!="-verifyroms"||verify->arguments[1]!="evilngt")return 5;
  if(MameBridge::verifyRomsPlan("mame","../evilngt"))return 6;
  if(MameBridge::launch({{}, {}})!=-1)return 7;
+ if(MameBridge::capture({{}, {}}).exitCode!=-1)return 11;
+#ifdef _WIN32
+ const ca_mame::compat::LaunchPlan capturePlan{"cmd.exe",{"/C","echo CA_MAME_CAPTURE_TEST"}};
+#else
+ const ca_mame::compat::LaunchPlan capturePlan{"/bin/echo",{"CA_MAME_CAPTURE_TEST"}};
+#endif
+ const auto captured=MameBridge::capture(capturePlan,8);
+ if(captured.exitCode!=0||captured.output!="CA_MAME"||!captured.truncated)return 12;
+ const auto complete=MameBridge::capture(capturePlan);
+ if(complete.exitCode!=0||complete.output.find("CA_MAME_CAPTURE_TEST")==std::string::npos||complete.truncated)return 13;
  const std::string xml="<mame><machine name=\"evilngt\" runnable=\"yes\" sourcefile=\"konami/m2.cpp\" cloneof=\"evilngta\" romof=\"konamim2\"><description>Evil Night</description><year>1998</year><manufacturer>Konami</manufacturer></machine><machine name=\"broken\" runnable=\"no\"><description>Test</description></machine></mame>";
  auto games=MameBridge::parseListXml(xml);
  if(games.size()!=2||games[0].name!="evilngt"||games[0].description!="Evil Night"||games[0].year!="1998"||!games[0].runnable||games[1].runnable)return 4;
