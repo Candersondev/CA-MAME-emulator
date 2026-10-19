@@ -59,7 +59,12 @@ int main(int argc,char** argv){
  std::future<int> gameProcess;
  std::string runningGame;
  bool runningNative=false;
- const auto nativeExecutable=std::filesystem::absolute(std::filesystem::path(argv[0])).parent_path()/"ca-mame-sdl";
+ const auto nativeExecutable=std::filesystem::absolute(std::filesystem::path(argv[0])).parent_path()/
+#ifdef _WIN32
+  "ca-mame-sdl.exe";
+#else
+  "ca-mame-sdl";
+#endif
  std::unordered_map<std::string,std::size_t> diagnosticScroll;
  bool detailsExpanded=false;
  bool pendingLaunch=false;
@@ -85,7 +90,9 @@ int main(int argc,char** argv){
   if(filtered.empty())return;
   const auto& game=scan.entries[filtered[selected]].game;
   if(!game.runnable){feedbackGame=game.name;feedback="BLOCKED: MAME marks driver non-runnable";return;}
-  if(const auto native=ca_mame::rom::nativeLaunchPlan(game.name,argv[2],nativeExecutable)) {
+  std::error_code nativeEc;
+  const bool executableAvailable=std::filesystem::is_regular_file(nativeExecutable,nativeEc);
+  if(const auto native=executableAvailable?ca_mame::rom::nativeLaunchPlan(game.name,argv[2],nativeExecutable):std::nullopt) {
    if(verification.valid()||gameProcess.valid()){feedbackGame=game.name;feedback="Another operation is already running";return;}
    prefs.recordLaunch(game.name);prefs.save(prefsFile);
    runningGame=game.name;runningNative=true;feedbackGame=game.name;
@@ -242,7 +249,9 @@ int main(int argc,char** argv){
    const auto dependencies=ca_mame::compat::DependencyInspector::inspectDetailed(item.game,std::filesystem::path(argv[2]),games);
    SDL_RenderDebugText(renderer,x,374,clip("Dependencies: "+std::to_string(dependencies.items.size())+(dependencies.hasMissing?" | MISSING SETS":" | SETS PRESENT")).c_str());
    SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
-   const bool nativeReady=ca_mame::rom::nativeLaunchPlan(item.game.name,argv[2],nativeExecutable).has_value();
+   std::error_code nativeEc;
+   const bool nativeReady=std::filesystem::is_regular_file(nativeExecutable,nativeEc) &&
+    ca_mame::rom::nativeLaunchPlan(item.game.name,argv[2],nativeExecutable).has_value();
    SDL_RenderDebugText(renderer,x,388,clip(nativeReady?"Launch: CA-MAME native hardware":"Launch: external MAME fallback").c_str());
    SDL_RenderDebugText(renderer,x,404,clip(feedbackGame==item.game.name?feedback:"ENTER: launch selected game").c_str());
    const auto report=reports.find(item.game.name);
