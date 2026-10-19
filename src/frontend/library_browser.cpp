@@ -3,6 +3,7 @@
 #include "ca_mame/compat/GameLibrary.hpp"
 #include "ca_mame/compat/MameBridge.hpp"
 #include "ca_mame/compat/RomDiagnostics.hpp"
+#include "ca_mame/compat/DependencyInspector.hpp"
 #include "ca_mame/compat/AuditStore.hpp"
 #include "ca_mame/compat/LibraryIndex.hpp"
 #include "ca_mame/compat/LibraryPreferences.hpp"
@@ -226,7 +227,8 @@ int main(int argc,char** argv){
    SDL_RenderDebugText(renderer,x,322,clip("ROM/BIOS parent: "+(item.game.bios.empty()?std::string("none"):item.game.bios)).c_str());
    SDL_RenderDebugText(renderer,x,342,(std::string("ZIP archive: ")+(item.localArchive?"FOUND":"NOT FOUND")).c_str());
    SDL_RenderDebugText(renderer,x,358,(std::string("CHD directory: ")+(item.hasChdDirectory?"FOUND":"NOT FOUND")).c_str());
-   SDL_RenderDebugText(renderer,x,374,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
+   const auto dependencies=ca_mame::compat::DependencyInspector::inspect(item.game,std::filesystem::path(argv[2]));
+   SDL_RenderDebugText(renderer,x,374,clip("Dependencies: "+std::to_string(dependencies.items.size())+(dependencies.hasMissing?" | MISSING SETS":" | SETS PRESENT")).c_str());
    SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
    SDL_RenderDebugText(renderer,x,396,clip(feedbackGame==item.game.name?feedback:"F5: verify selected game before launch").c_str());
    const auto report=reports.find(item.game.name);
@@ -236,6 +238,13 @@ int main(int argc,char** argv){
     SDL_RenderDebugText(renderer,x,404,clip("Issues: "+std::to_string(issues.size())+" (see diagnostics below)").c_str());
    }
    const auto detail=diagnostics.find(item.game.name);
+   if(detail==diagnostics.end()&&dependencies.hasMissing){
+    SDL_SetRenderDrawColor(renderer,255,175,130,255);
+    for(std::size_t i=0;i<dependencies.items.size()&&i<3;++i){
+     const auto& dep=dependencies.items[i];
+     SDL_RenderDebugText(renderer,x,416.0f+static_cast<float>(i)*15.0f,clip(dep.role+": "+dep.name+(dep.state==ca_mame::compat::DependencyState::Found?" found":" MISSING")).c_str());
+    }
+   }
    const float diagTop=416.0f;
    const int diagRows=detailsExpanded?std::max(5,(h-460)/15):5;
    if(detail!=diagnostics.end()){
