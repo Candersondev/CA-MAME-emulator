@@ -34,7 +34,7 @@ DependencyReport DependencyInspector::inspect(const Game& game,const std::filesy
  return report;
 }
 static DependencyReport inspectWithSets(const Game& game,const std::filesystem::path& root,const std::vector<std::string>& sets){
- auto report=inspect(game,root);
+ auto report=DependencyInspector::inspect(game,root);
  std::error_code ec;
  std::unordered_map<std::string,ZipAuditResult> archives;
  auto inspectArchive=[&](const std::string& set)->const ZipAuditResult*{
