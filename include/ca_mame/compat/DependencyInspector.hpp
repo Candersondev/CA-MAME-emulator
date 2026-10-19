@@ -11,3 +11,4 @@ class DependencyInspector {
 public:
  static DependencyReport inspect(const Game& game,const std::filesystem::path& romDirectory);
 };
+} // namespace ca_mame::compat
