@@ -11,6 +11,7 @@
 #include <vector>
 #include "ca_mame/drivers/SpaceInvaders.hpp"
 #include "ca_mame/audio/InvadersAudio.hpp"
+#include "ca_mame/audio/InvadersFrameClock.hpp"
 
 namespace {
 using Board=ca_mame::drivers::SpaceInvaders;
@@ -53,6 +54,7 @@ int main(int argc,char** argv) {
         return 2;
     }
     Board board;
+    board.setAccurateTiming(true);
     for(int i=1;i<5;++i) {
         if(!loadFile(board,argv[i],static_cast<std::uint16_t>((i-1)*0x800)))return 1;
     }
@@ -81,7 +83,8 @@ int main(int argc,char** argv) {
     else std::cerr<<"Audio unavailable: "<<SDL_GetError()<<"\n";
     ca_mame::audio::InvadersAudio soundGenerator;
     constexpr int sampleRate=static_cast<int>(ca_mame::audio::InvadersAudio::SampleRate);
-    constexpr int frameSamples=735;
+    using FrameClock=ca_mame::audio::InvadersFrameClock;
+    std::uint64_t frameNumber=0;
     bool running=true;
     auto next=std::chrono::steady_clock::now();
     while(running) {
@@ -108,10 +111,13 @@ int main(int argc,char** argv) {
         // it here so frontend consumers do not accumulate stale events.
         board.soundRisingEdges3();
         board.soundRisingEdges5();
+        ++frameNumber;
+        const auto frameSampleCount=FrameClock::sampleDeadline(frameNumber)
+            -FrameClock::sampleDeadline(frameNumber-1);
         if(audio) {
             constexpr int maxQueuedBytes=sampleRate*int(sizeof(float))/5;
             if(SDL_GetAudioStreamQueued(audio)<maxQueuedBytes) {
-                std::array<float,frameSamples> samples{};
+                std::vector<float> samples(static_cast<std::size_t>(frameSampleCount));
                 soundGenerator.renderTimed(samples,audioEvents,frameStart,frameEnd);
                 if(!SDL_PutAudioStreamData(audio,samples.data(),static_cast<int>(samples.size()*sizeof(float))))
                     std::cerr<<"SDL audio queue: "<<SDL_GetError()<<"\\n";
@@ -124,7 +130,9 @@ int main(int argc,char** argv) {
         SDL_RenderClear(renderer);
         SDL_RenderTexture(renderer,texture,nullptr,nullptr);
         SDL_RenderPresent(renderer);
-        next+=std::chrono::microseconds(16667);
+        next=next+std::chrono::nanoseconds(
+            FrameClock::nanosecondDeadline(frameNumber)
+            -FrameClock::nanosecondDeadline(frameNumber-1));
         const auto now=std::chrono::steady_clock::now();
         if(next>now)std::this_thread::sleep_until(next);
         else if(now-next>std::chrono::milliseconds(100))next=now;
