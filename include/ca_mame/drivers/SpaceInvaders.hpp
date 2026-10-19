@@ -3,12 +3,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <vector>
 #include "ca_mame/core/IMachine.hpp"
 #include "ca_mame/bus/MemoryBus.hpp"
 #include "ca_mame/bus/IoBus.hpp"
 #include "ca_mame/cpu/Intel8080.hpp"
 namespace ca_mame::drivers {
 // Space Invaders board model. Sound events are latched; audio synthesis and watchdog remain TODO.
+struct SoundTransition {
+    std::uint8_t port;
+    std::uint8_t bit;
+    bool active;
+    std::uint64_t cycle;
+};
+
 class SpaceInvaders final : public IMachine {
 public:
     static constexpr std::size_t Width=224, Height=256;
@@ -35,6 +43,8 @@ public:
     std::uint8_t soundRisingEdges3() noexcept { const auto edges=sound3Edges_; sound3Edges_=0; return edges; }
     std::uint8_t soundRisingEdges5() noexcept { const auto edges=sound5Edges_; sound5Edges_=0; return edges; }
     void writePort(std::uint8_t port,std::uint8_t value) { io_.write(port,value); }
+    // Consume ordered hardware control-line transitions for the audio backend.
+    std::vector<SoundTransition> takeSoundTransitions();
     std::uint64_t runHalfFrame();
     std::uint64_t elapsedCycles() const noexcept { return cycles_; }
     unsigned elapsedHalfFrames() const noexcept { return halfFrames_; }
@@ -48,6 +58,8 @@ private:
     std::uint16_t shift_=0;
     std::uint8_t shiftOffset_=0;
     std::uint8_t sound3_=0,sound5_=0,sound3Edges_=0,sound5Edges_=0;
+    void recordSoundWrite(std::uint8_t port,std::uint8_t value);
+    std::vector<SoundTransition> soundTransitions_;
     std::uint64_t cycles_=0;
     unsigned halfFrames_=0;
 };
