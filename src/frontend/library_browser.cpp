@@ -44,6 +44,8 @@ int main(int argc,char** argv){
  std::string search;
  bool localOnly=true,running=true,favoritesOnly=false,recentOnly=false;
  std::size_t selected=0,offset=0;
+ std::string feedback="F5 verifies ROM/BIOS/CHD requirements";
+ std::string feedbackGame;
  ca_mame::compat::LibraryIndex index(scan);
  auto filtered=index.find(search,localOnly);
  auto refine=[&](){filtered.erase(std::remove_if(filtered.begin(),filtered.end(),[&](std::size_t i){const auto& id=scan.entries[i].game.name;return (favoritesOnly&&!prefs.favorite(id))||(recentOnly&&std::find(prefs.recent().begin(),prefs.recent().end(),id)==prefs.recent().end());}),filtered.end());};
@@ -57,13 +59,15 @@ int main(int argc,char** argv){
   const auto& item=scan.entries[filtered[selected]];
   if(!item.game.runnable){std::cerr<<"MAME marks driver non-runnable: "<<item.game.name<<"\n";return;}
   const auto verify=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],item.game.name,std::filesystem::path(argv[2]));
-  if(!verify)return;
+  if(!verify){feedbackGame=item.game.name;feedback="BLOCKED: invalid verification command";return;}
   const int auditCode=ca_mame::compat::MameBridge::launch(*verify);
+  feedbackGame=item.game.name;
+  feedback=auditCode==0?"PASS: ROM verification succeeded; launching MAME":("FAIL: MAME verification exit "+std::to_string(auditCode)+"; inspect console output");
   audits.record(item.game.name,auditCode);
   audits.save(auditFile);
   if(auditCode!=0){std::cerr<<"ROM/BIOS/CHD verification failed for "<<item.game.name<<" (exit "<<auditCode<<"). Check MAME dependencies.\n";return;}
   const auto plan=ca_mame::compat::MameBridge::plan(argv[3],item.game.name,std::filesystem::path(argv[2]));
-  if(!plan)return;
+  if(!plan){feedback="BLOCKED: invalid launch command";return;}
   prefs.recordLaunch(item.game.name);prefs.save(prefsFile);
   SDL_HideWindow(window);
   const int result=ca_mame::compat::MameBridge::launch(*plan);
@@ -111,7 +115,9 @@ int main(int argc,char** argv){
      case SDLK_F5:
       if(!filtered.empty()){
        const auto plan=ca_mame::compat::MameBridge::verifyRomsPlan(argv[3],scan.entries[filtered[selected]].game.name,std::filesystem::path(argv[2]));
-       if(plan){const int code=ca_mame::compat::MameBridge::launch(*plan);
+       if(plan){feedbackGame=scan.entries[filtered[selected]].game.name;feedback="Verifying ROM/BIOS/CHD with MAME...";
+        const int code=ca_mame::compat::MameBridge::launch(*plan);
+        feedback=code==0?"PASS: MAME verification succeeded":("FAIL: MAME verification exit "+std::to_string(code)+"; inspect console output");
         audits.record(scan.entries[filtered[selected]].game.name,code);
         if(!audits.save(auditFile))std::cerr<<"Failed to save audit status\\n";
         std::cerr<<"MAME ROM verification exit status: "<<code<<"\\n";}
@@ -189,8 +195,12 @@ int main(int argc,char** argv){
    SDL_RenderDebugText(renderer,x,282,clip("Hardware driver: "+(item.game.sourceFile.empty()?std::string("unknown"):item.game.sourceFile)).c_str());
    SDL_RenderDebugText(renderer,x,302,clip("Clone parent: "+(item.game.parent.empty()?std::string("none"):item.game.parent)).c_str());
    SDL_RenderDebugText(renderer,x,322,clip("ROM/BIOS parent: "+(item.game.bios.empty()?std::string("none"):item.game.bios)).c_str());
-   SDL_RenderDebugText(renderer,x,342,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
-   SDL_FRect artRect{x,370,std::max(1.0f,available),static_cast<float>(std::max(80,h-402))};
+   SDL_RenderDebugText(renderer,x,342,(std::string("ZIP archive: ")+(item.localArchive?"FOUND":"NOT FOUND")).c_str());
+   SDL_RenderDebugText(renderer,x,358,(std::string("CHD directory: ")+(item.hasChdDirectory?"FOUND":"NOT FOUND")).c_str());
+   SDL_RenderDebugText(renderer,x,374,(std::string("Artwork: ")+artworkCategories[artworkCategory]+"  [LEFT/RIGHT]").c_str());
+   SDL_SetRenderDrawColor(renderer,feedbackGame==item.game.name?255:175,feedbackGame==item.game.name?190:200,150,255);
+   SDL_RenderDebugText(renderer,x,396,clip(feedbackGame==item.game.name?feedback:"F5: verify selected game before launch").c_str());
+   SDL_FRect artRect{x,424,std::max(1.0f,available),static_cast<float>(std::max(80,h-456))};
    SDL_SetRenderDrawColor(renderer,19,25,38,255);SDL_RenderFillRect(renderer,&artRect);
    if(artwork){
     float tw=0,th=0;
