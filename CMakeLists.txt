@@ -29,6 +29,7 @@ add_library(ca_mame_core
     src/cpu/Intel8080.cpp
     src/cpu/PowerPC602.cpp
     src/drivers/SpaceInvaders.cpp
+    src/drivers/GunFight.cpp
 )
 target_link_libraries(ca_mame_core PUBLIC ZLIB::ZLIB)
 target_include_directories(ca_mame_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -166,6 +167,9 @@ if(BUILD_TESTING)
     add_executable(io-interrupt-tests tests/io_interrupt_tests.cpp)
     target_link_libraries(io-interrupt-tests PRIVATE ca_mame_core)
     add_test(NAME io_interrupt_tests COMMAND io-interrupt-tests)
+    add_executable(gunfight-tests tests/gunfight_tests.cpp)
+    target_link_libraries(gunfight-tests PRIVATE ca_mame_core)
+    add_test(NAME gunfight_tests COMMAND gunfight-tests)
     add_executable(cycle-watchdog-tests tests/cycle_watchdog_tests.cpp)
     target_link_libraries(cycle-watchdog-tests PRIVATE ca_mame_core)
     add_test(NAME cycle_watchdog_tests COMMAND cycle-watchdog-tests)
