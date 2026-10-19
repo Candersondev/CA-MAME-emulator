@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include "ca_mame/audio/InvadersAudio.hpp"
+#include "ca_mame/audio/InvadersFrameClock.hpp"
 
 int main() {
     using namespace ca_mame::audio;
@@ -42,5 +43,16 @@ int main() {
     const std::array<InvadersSoundEvent,1> stopHalfway={{{InvadersSignal::UfoLoop,false,150}}};
     audio.renderTimed(timed,stopHalfway,100,200);
     for(std::size_t i=50;i<100;++i) if(timed[i]!=0.0f) return 10;
+    using Clock=InvadersFrameClock;
+    constexpr std::uint64_t frames=600;
+    std::uint64_t total=0;
+    for(std::uint64_t frame=1;frame<=frames;++frame) {
+        const auto count=Clock::sampleDeadline(frame)-Clock::sampleDeadline(frame-1);
+        if(count<740 || count>741) return 11;
+        total+=count;
+    }
+    if(total!=Clock::sampleDeadline(frames)) return 12;
+    if(Clock::nanosecondDeadline(frames)<10000000000ull ||
+       Clock::nanosecondDeadline(frames)>10100000000ull) return 13;
     return 0;
 }
