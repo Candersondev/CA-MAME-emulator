@@ -10,5 +10,6 @@ struct DependencyReport { std::vector<DependencyItem> items; bool hasMissing=fal
 class DependencyInspector {
 public:
  static DependencyReport inspect(const Game& game,const std::filesystem::path& romDirectory);
+ static DependencyReport inspectDetailed(const Game& game,const std::filesystem::path& romDirectory);
 };
 } // namespace ca_mame::compat
