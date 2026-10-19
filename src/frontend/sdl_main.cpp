@@ -93,12 +93,17 @@ int main(int argc,char** argv) {
         if(!running)break;
         SDL_PumpEvents();
         updateInputs(board);
+        const auto frameStart=board.elapsedCycles();
         board.runHalfFrame();
         board.runHalfFrame();
+        const auto frameEnd=board.elapsedCycles();
         // Apply all board control-line transitions, including falling edges.
         // Audio is generated independently of the video frontend.
-        for(const auto& transition:board.takeSoundTransitions())
-            soundGenerator.apply(ca_mame::audio::decodeInvadersEvent(transition));
+        const auto transitions=board.takeSoundTransitions();
+        std::vector<ca_mame::audio::InvadersSoundEvent> audioEvents;
+        audioEvents.reserve(transitions.size());
+        for(const auto& transition:transitions)
+            audioEvents.push_back(ca_mame::audio::decodeInvadersEvent(transition));
         // Preserve the legacy rising-edge API for other clients, but drain
         // it here so frontend consumers do not accumulate stale events.
         board.soundRisingEdges3();
@@ -107,7 +112,7 @@ int main(int argc,char** argv) {
             constexpr int maxQueuedBytes=sampleRate*int(sizeof(float))/5;
             if(SDL_GetAudioStreamQueued(audio)<maxQueuedBytes) {
                 std::array<float,frameSamples> samples{};
-                soundGenerator.render(samples);
+                soundGenerator.renderTimed(samples,audioEvents,frameStart,frameEnd);
                 if(!SDL_PutAudioStreamData(audio,samples.data(),static_cast<int>(samples.size()*sizeof(float))))
                     std::cerr<<"SDL audio queue: "<<SDL_GetError()<<"\\n";
             }
