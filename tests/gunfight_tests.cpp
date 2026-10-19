@@ -19,5 +19,41 @@ int main() {
     auto machine=registry.create("gunfight");
     if(!machine || machine->driverId()!="gunfight") return 6;
     if(!registry.create("invaders")) return 7;
+    // Video RAM is a 224 x 256 1-bit rotated bitmap.
+    {
+        ca_mame::drivers::GunFight video;
+        const std::array<std::uint8_t,3> store={0x32,0x00,0x24};
+        if(!video.loadRom(0,store)) return 8;
+        video.cpu().a=0x81;
+        video.cpu().step();
+        const auto pixels=video.frameBuffer();
+        if(pixels.size()!=224*256 || pixels[255*224]!=0xffffffffu ||
+           pixels[248*224]!=0xffffffffu || pixels[254*224]!=0xff000000u) return 9;
+    }
+    // IRQ requests occur at scanlines 128 and 218 each 262-line frame.
+    {
+        using Board=ca_mame::drivers::GunFight;
+        Board timing;
+        for(std::uint64_t half=1;half<=240;++half) {
+            const auto before=timing.elapsedCycles();
+            const auto ran=timing.runHalfFrame();
+            const auto frame=(half-1)/2;
+            const auto line=(half&1)?Board::IntTrigger1:Board::IntTrigger2;
+            const auto deadline=((frame*Board::VTotal+line)
+                *std::uint64_t(Board::CpuHz)*Board::HTotal)/Board::PixelHz;
+            if(timing.elapsedHalfFrames()!=half || ran!=timing.elapsedCycles()-before ||
+               timing.elapsedCycles()<deadline || timing.elapsedCycles()>=deadline+4) return 10;
+        }
+    }
+    // Interrupt vectors must be delivered through the shared Intel 8080.
+    {
+        ca_mame::drivers::GunFight irq;
+        const std::array<std::uint8_t,1> halt={0x76};
+        irq.loadRom(0,halt);
+        irq.cpu().sp=0x2400;
+        irq.cpu().setInterruptEnabled(true);
+        irq.runHalfFrame();
+        if(irq.cpu().step()!=11 || irq.cpu().pc!=0x08) return 11;
+    }
     return 0;
 }
