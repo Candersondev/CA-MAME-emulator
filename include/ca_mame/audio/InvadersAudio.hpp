@@ -19,6 +19,29 @@ public:
         if(event.active && !active_[index]) envelope_[index]=1.0f;
         active_[index]=event.active;
     }
+    // Render a CPU-cycle interval with transitions applied at their respective
+    // sample positions. Events must be in nondecreasing cycle order.
+    void renderTimed(std::span<float> output,
+                     std::span<const InvadersSoundEvent> events,
+                     std::uint64_t startCycle,
+                     std::uint64_t endCycle) noexcept {
+        if(output.empty()) {
+            for(const auto& event:events) apply(event);
+            return;
+        }
+        std::size_t cursor=0;
+        for(const auto& event:events) {
+            const auto position=event.cycle<=startCycle?std::size_t{0}:
+                event.cycle>=endCycle?output.size():
+                static_cast<std::size_t>((static_cast<long double>(event.cycle-startCycle)
+                    *output.size())/(endCycle-startCycle));
+            const auto boundary=std::max(cursor,position);
+            render(output.subspan(cursor,boundary-cursor));
+            cursor=boundary;
+            apply(event);
+        }
+        render(output.subspan(cursor));
+    }
     void render(std::span<float> output) noexcept {
         constexpr std::array<double,10> frequency={
             110.0, 800.0, 85.0, 520.0, 650.0,
