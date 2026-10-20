@@ -14,6 +14,11 @@ int main(){
  if(board.scanline()!=0||board.rasterInterrupts()!=1)return fail(3);
  board.advanceRaster(16667);
  if(board.scanline()!=0||board.rasterInterrupts()!=2)return fail(4);
+ // A large advance must preserve the number of completed frames.
+ board.reset();
+ board.advanceRaster(1000000);
+ if(board.rasterInterrupts()!=59)return fail(6);
+ if(board.scanline()==0)return fail(7);
  board.reset();
  if(board.scanline()!=0||board.rasterInterrupts()!=0)return fail(5);
  return 0;
