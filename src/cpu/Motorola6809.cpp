@@ -185,6 +185,31 @@ std::uint32_t Motorola6809::step(){
         ((result&0xff)==0?4:0)|(result&0x80?8:0));
     return 2;
  }
+ case 0x84:case 0x8a:case 0x88:case 0x85:
+ case 0xc4:case 0xca:case 0xc8:case 0xc5:{
+    const auto rhs=fetch();
+    auto& reg=(op&0x40)?b:a;
+    const auto kind=op&0x0f;
+    std::uint8_t result=0;
+    if(kind==4||kind==5)result=std::uint8_t(reg&rhs);
+    else if(kind==8)result=std::uint8_t(reg^rhs);
+    else result=std::uint8_t(reg|rhs);
+    setNZ8(result);cc=std::uint8_t(cc&~2);
+    if(kind!=5)reg=result;
+    return 2;
+ }
+ case 0x80:case 0xc0:case 0x82:case 0xc2:{
+    const auto rhs=fetch();
+    auto& reg=(op&0x40)?b:a;
+    const auto borrow=(op&2)?(cc&1):0;
+    const auto lhs=unsigned(reg);
+    const auto result=lhs-unsigned(rhs)-borrow;
+    cc=std::uint8_t((cc&~0x0f)|(result&0x100?1:0)|
+      (((lhs^rhs)&(lhs^result)&0x80)?2:0)|
+      ((result&0xff)==0?4:0)|(result&0x80?8:0));
+    reg=std::uint8_t(result);
+    return 2;
+ }
  case 0x86:a=fetch();setNZ8(a);cc&=std::uint8_t(~2);return 2;
  case 0xc6:b=fetch();setNZ8(b);cc&=std::uint8_t(~2);return 2;
  case 0x8e:x=fetch16();setNZ16(x);cc&=std::uint8_t(~2);return 3;
