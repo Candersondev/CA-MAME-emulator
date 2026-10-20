@@ -79,9 +79,10 @@ void Williams6809::advanceRaster(std::uint32_t cpuCycles){
     if(profile_==BoardProfile::Experimental)return;
     // Approximate 256 lines/frame at a nominal 1 MHz / 60 Hz CPU clock.
     // Exact Williams beam clocks and scanline interrupt positions are pending.
-    scanlineCycleRemainder_+=cpuCycles*256u;
-    while(scanlineCycleRemainder_>=16667u){
-        scanlineCycleRemainder_-=16667u;
+    // Use 64-bit arithmetic so large diagnostic advances cannot overflow.
+    std::uint64_t accumulated=std::uint64_t(scanlineCycleRemainder_)+std::uint64_t(cpuCycles)*256u;
+    while(accumulated>=16667u){
+        accumulated-=16667u;
         scanline_=std::uint16_t((scanline_+1)%256);
         if(scanline_==0){
             ++rasterInterrupts_;
@@ -89,6 +90,7 @@ void Williams6809::advanceRaster(std::uint32_t cpuCycles){
             if(pias_[0].irq())cpu_.requestIrq();
         }
     }
+    scanlineCycleRemainder_=static_cast<std::uint32_t>(accumulated);
 }
 Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycleBudget){
     const auto target=cycles_+cycleBudget;
@@ -105,8 +107,10 @@ std::uint64_t Williams6809::runFrame(){
     const auto before=cycles_;
     while(cycles_<target){
         const auto spent=cpu_.step();
-        cycles_+=spent;
-        advanceRaster(spent);
+        // A zero-cycle step must not stall the frame scheduler forever.
+        const auto advanced=spent?spent:1;
+        cycles_+=advanced;
+        advanceRaster(advanced);
         if(cpu_.halted())break; // unsupported opcode or SYNC: fail closed
     }
     return cycles_-before;
