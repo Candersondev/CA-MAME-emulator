@@ -91,6 +91,11 @@ std::uint64_t Williams6809::runFrame(){
         cycles_+=cpu_.step();
         if(cpu_.halted())break; // unsupported opcode or SYNC: fail closed
     }
+    if(profile_!=BoardProfile::Experimental){
+        ++rasterInterrupts_;
+        pias_[0].edgeCA1(true);
+        if(pias_[0].irq())cpu_.requestIrq();
+    }
     return cycles_-before;
 }
 }
