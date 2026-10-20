@@ -72,7 +72,9 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                     // Wrap every DMA address in the 6809's 16-bit address space.
                     auto src=std::uint16_t(source+row*width*srcStep);
                     auto dst=std::uint16_t(destination+row*width*dstStep);
-                    std::uint8_t shiftCarry=0;
+                    // Shift wraps the last low nibble to the first high nibble.
+                    const auto lastSource=std::uint16_t(src+(width?width-1:0)*srcStep);
+                    std::uint8_t shiftCarry=(control&0x20 && width)?std::uint8_t(busRead(lastSource)<<4):0;
                     for(unsigned col=0;col<width;++col){
                         const auto raw=busRead(src);
                         auto value=std::uint8_t((control&0x10)?solid:raw);
@@ -82,6 +84,8 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                             value=shifted;
                         }
                         const auto previous=busRead(dst);
+                        // Hardware suppresses writes per nibble; the destination
+                        // byte is preserved wherever write enable is inactive.
                         std::uint8_t mask=0xff;
                         if(control&0x08){
                             const auto foreground=std::uint8_t((control&0x10)?raw:value);

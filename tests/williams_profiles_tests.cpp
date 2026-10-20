@@ -67,6 +67,23 @@ int main(){
  board.busWrite(0xca06,6);board.busWrite(0xca07,5);
  board.busWrite(0xca00,0);
  if(board.rejectedDmaWrites()!=rejectedBeforeWrap+2)return fail(27);
+ // Shift rotates the last low nibble into the first high nibble.
+ board.busWrite(0x4050,0x12);board.busWrite(0x4051,0x34);
+ board.busWrite(0xca02,0x40);board.busWrite(0xca03,0x50);
+ board.busWrite(0xca04,0x40);board.busWrite(0xca05,0x60);
+ board.busWrite(0xca06,6);board.busWrite(0xca07,5);
+ board.busWrite(0xca00,0x20);
+ if(board.busRead(0x4060)!=0x41||board.busRead(0x4061)!=0x23)return fail(28);
+ // Both nibble write-suppress flags together leave destination unchanged.
+ board.busWrite(0x4060,0xa5);
+ board.busWrite(0xca00,0xc0);
+ if(board.busRead(0x4060)!=0xa5)return fail(29);
+ // Defender predates the Special Chip: CA00 writes must not launch DMA.
+ ca_mame::drivers::Williams6809 defender;
+ defender.setBoardProfile(ca_mame::drivers::Williams6809::BoardProfile::Defender);
+ defender.busWrite(0xca06,5);defender.busWrite(0xca07,5);
+ defender.busWrite(0xca00,0);
+ if(defender.specialChipStarts()!=0||defender.specialChipBytes()!=0)return fail(30);
  // Direct register writes defer bus contention until CPU scheduling.
  const auto pending=board.pendingDmaCycles();
  if(!pending||board.dmaStallCycles()!=0)return fail(21);
