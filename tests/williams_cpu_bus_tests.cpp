@@ -33,9 +33,15 @@ int main(){
  board.busWrite(0xd010,4); // solid fill
  board.busWrite(0xd011,0x34);
  board.busWrite(0xd012,0x00);board.busWrite(0xd013,0x00);
- board.busWrite(0xd014,0x00);board.busWrite(0xd015,0x00);
+ board.busWrite(0xd014,0x40);board.busWrite(0xd015,0x00);
  board.busWrite(0xd016,1);board.busWrite(0xd017,1); // trigger
  if(board.video().read(0)!=0x34)return fail(7);
+ // Bus-addressed copy from VRAM byte zero to byte one.
+ board.busWrite(0xd010,0);
+ board.busWrite(0xd012,0x40);board.busWrite(0xd013,0x00);
+ board.busWrite(0xd014,0x40);board.busWrite(0xd015,0x01);
+ board.busWrite(0xd016,1);board.busWrite(0xd017,1);
+ if(board.busRead(0x4001)!=0x34)return fail(10);
  board.busWrite(0x0000,0xaa);
  if(board.busRead(0x0000)!=bank1[0])return fail(8); // ROM is write-protected
  board.reset();
