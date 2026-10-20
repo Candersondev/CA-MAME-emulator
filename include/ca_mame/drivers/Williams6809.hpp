@@ -22,6 +22,8 @@ public:
     std::uint8_t soundCommand() const noexcept{return soundLink_.command();}
     hardware::WilliamsSoundLink& soundLink() noexcept{return soundLink_;}
     std::uint64_t rasterInterrupts() const noexcept{return rasterInterrupts_;}
+    std::uint64_t blitterBytes() const noexcept{return blitter_.totalBytes();}
+    std::uint32_t lastBlitBytes() const noexcept{return blitter_.lastBytes();}
     std::uint16_t scanline() const noexcept{return scanline_;}
     void advanceRaster(std::uint32_t cpuCycles);
     std::string_view driverId() const noexcept override{return "williams6809";}
