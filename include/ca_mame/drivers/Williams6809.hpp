@@ -23,6 +23,8 @@ public:
     void write(std::uint16_t address,std::uint8_t value) noexcept{memory_[address]=value;}
     Motorola6809& cpu() noexcept{return cpu_;}
     std::uint64_t elapsedCycles() const noexcept{return cycles_;}
+    struct BootDiagnostic {std::uint16_t pc;std::uint64_t cycles;std::uint64_t unsupported;bool halted;};
+    BootDiagnostic runBootDiagnostic(std::uint64_t cycleBudget);
     hardware::PIA6821& pia(unsigned index) noexcept{return pias_[index&1];}
     hardware::WilliamsVideo& video() noexcept{return video_;}
     hardware::WilliamsBlitter& blitter() noexcept{return blitter_;}
