@@ -22,6 +22,14 @@ int main(){
  const std::array<std::uint8_t,1> marker0={0x15},marker2={0x2a};
  if(!board.loadBank(0,marker0)||!board.loadBank(2,marker2))return fail(8);
  if(board.busRead(0)!=0x15)return fail(9);
+ // Special Chip register latch: CA00 starts a command on Robotron boards.
+ board.busWrite(0xca01,0xf0);
+ board.busWrite(0xca02,0x40);board.busWrite(0xca03,0x00);
+ board.busWrite(0xca04,0x40);board.busWrite(0xca05,0x10);
+ board.busWrite(0xca06,2);board.busWrite(0xca07,3);
+ if(board.specialChipStarts()!=0||board.specialChipRegister(1)!=0xf0)return fail(12);
+ board.busWrite(0xca00,0x00);
+ if(board.specialChipStarts()!=1||board.busRead(0xca00)!=0)return fail(13);
  board.busWrite(0xc900,2);
  if(board.busRead(0)!=0x2a)return fail(10);
  if(board.romBank()!=2||board.busRead(0xc900)!=2)return fail(3);
@@ -36,5 +44,6 @@ int main(){
  board.reset();
  if(board.soundCommand()!=0||board.rasterInterrupts()!=0||board.romBank()!=0)return fail(7);
  if(board.busRead(0)!=0x15||board.cpu().pc!=0xe000)return fail(11);
+ if(board.specialChipStarts()!=0||board.specialChipRegister(1)!=0)return fail(14);
  return 0;
 }

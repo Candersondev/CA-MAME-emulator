@@ -26,6 +26,8 @@ public:
     std::uint32_t lastBlitBytes() const noexcept{return blitter_.lastBytes();}
     std::uint64_t rejectedDmaWrites() const noexcept{return rejectedDmaWrites_;}
     std::uint8_t blitterRegister(unsigned index) const noexcept{return blitterRegisters_[index&7];}
+    std::uint8_t specialChipRegister(unsigned index) const noexcept{return specialChipRegisters_[index&7];}
+    std::uint64_t specialChipStarts() const noexcept{return specialChipStarts_;}
     std::uint16_t scanline() const noexcept{return scanline_;}
     void advanceRaster(std::uint32_t cpuCycles);
     std::string_view driverId() const noexcept override{return "williams6809";}
@@ -66,5 +68,7 @@ private:
     std::array<std::uint8_t,8> blitterRegisters_{};
     std::uint64_t cycles_=0,frames_=0;
     std::uint64_t rejectedDmaWrites_=0;
+    std::array<std::uint8_t,8> specialChipRegisters_{};
+    std::uint64_t specialChipStarts_=0;
 };
 }

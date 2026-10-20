@@ -8,7 +8,7 @@ Williams6809::Williams6809():cpu_(memory_){
 }
 void Williams6809::reset(){
     // Preserve loaded program images across board resets.
-    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;
+    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;specialChipRegisters_.fill(0);specialChipStarts_=0;
     for(auto& pia:pias_)pia.reset();
     video_.reset();blitter_.resetStatistics();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
 }
@@ -33,6 +33,7 @@ std::uint8_t Williams6809::busRead(std::uint16_t address){
     if(profile_!=BoardProfile::Experimental){
         if(address>=0xc804 && address<=0xc807)return pias_[0].read(std::uint8_t(address&3));
         if(address>=0xc80c && address<=0xc80f)return pias_[1].read(std::uint8_t(address&3));
+        if(profile_==BoardProfile::Robotron && address>=0xca00 && address<=0xca07)return specialChipRegisters_[address-0xca00];
         if(address==0xc900)return romBank_;
         if(address==0xc980)return soundLink_.command();
     }
@@ -53,6 +54,12 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
     if(profile_!=BoardProfile::Experimental){
         if(address>=0xc804 && address<=0xc807){pias_[0].write(std::uint8_t(address&3),value);return;}
         if(address>=0xc80c && address<=0xc80f){pias_[1].write(std::uint8_t(address&3),value);return;}
+        if(profile_==BoardProfile::Robotron && address>=0xca00 && address<=0xca07){
+            const auto index=unsigned(address-0xca00);
+            specialChipRegisters_[index]=value;
+            if(index==0)++specialChipStarts_; // Command strobe; DMA engine pending.
+            return;
+        }
         if(address==0xc900){setRomBank(value);return;}
         if(address==0xc980){soundLink_.send(value);pias_[1].setPortB(value);return;}
     }
