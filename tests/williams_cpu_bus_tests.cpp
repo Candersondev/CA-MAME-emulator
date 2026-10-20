@@ -9,7 +9,7 @@ int main(){
  // LDA $0010 (banked ROM); STA $d004 (PIA1 DDR B);
  // LDA #$04; STA $d005 (PIA1 control B);
  // LDA #$a5; STA $d004 (PIA1 output B); BRA -2.
- const std::array<std::uint8_t,26> code={
+ const std::array<std::uint8_t,27> code={
   0x86,0x01,0xb7,0xd0,0x20,
   0xb6,0x00,0x10,0xb7,0xd0,0x06,
   0x86,0x04,0xb7,0xd0,0x07,
