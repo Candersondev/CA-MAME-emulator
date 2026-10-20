@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <initializer_list>
 #include "ca_mame/hardware/WilliamsVideo.hpp"
 namespace ca_mame::hardware {
 // Experimental nibble-aware blitter operating on WilliamsVideo VRAM.
