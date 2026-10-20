@@ -66,11 +66,13 @@ int main(){
  board.busWrite(0xc805,0x07);
  board.busWrite(0xc804,0xa5);
  if(board.pia(0).outputA()!=0xa5)return fail(5);
- // DMA accounting may have already crossed a frame boundary before runFrame.
- // Assert monotonic raster progress and a latched video IRQ, not exactly one frame.
+ // The CPU frame target uses 1 MHz / 60, while the raster uses
+ // 16667 cycles per full sweep. Explicitly cross a raster boundary.
  const auto interruptsBeforeFrame=board.rasterInterrupts();
  board.runFrame();
- if(board.rasterInterrupts()<interruptsBeforeFrame||board.rasterInterrupts()==0||!board.pia(0).irq())return fail(6);
+ if(board.rasterInterrupts()<interruptsBeforeFrame)return fail(6);
+ board.advanceRaster(16667);
+ if(board.rasterInterrupts()<=interruptsBeforeFrame||!board.pia(0).irq())return fail(6);
  board.reset();
  if(board.soundCommand()!=0||board.rasterInterrupts()!=0||board.romBank()!=0)return fail(7);
  if(board.busRead(0)!=0x15||board.cpu().pc!=0xe000)return fail(11);
