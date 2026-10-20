@@ -29,6 +29,8 @@ public:
  void edgeCA1(bool rising) noexcept {if(rising==bool(cra_&2))irqA_=true;}
  void edgeCB1(bool rising) noexcept {if(rising==bool(crb_&2))irqB_=true;}
  void clearInterrupts() noexcept {irqA_=irqB_=false;}
+ // Control register IRQ flags are status bits, not writable configuration.
+ // An edge is latched regardless of whether IRQ output is enabled.
  bool irqA() const noexcept{return irqA_;}
  bool irqB() const noexcept{return irqB_;}
  bool irq() const noexcept{return (irqA_&&(cra_&1))||(irqB_&&(crb_&1));}

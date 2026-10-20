@@ -18,6 +18,22 @@ int main(){
  if(!board.loadProgram(0xfffe,vector)||!board.loadProgram(0xe000,loop))return fail(2);
  board.setBoardProfile(ca_mame::drivers::Williams6809::BoardProfile::Robotron);
  board.reset();
+ // MC6821: IRQ status latches even when disabled; port-data reads
+ // acknowledge it, while control reads and DDR reads do not.
+ ca_mame::hardware::PIA6821 piaCheck;
+ piaCheck.write(1,0x06);
+ piaCheck.edgeCA1(true);
+ if(!piaCheck.irqA()||piaCheck.irq()||!(piaCheck.read(1)&0x80))return fail(31);
+ piaCheck.write(1,0x07);
+ if(!piaCheck.irq()||!(piaCheck.read(1)&0x80))return fail(32);
+ (void)piaCheck.read(0);
+ if(piaCheck.irqA()||piaCheck.irq()||(piaCheck.read(1)&0x80))return fail(33);
+ piaCheck.write(1,0x02);
+ piaCheck.edgeCA1(true);
+ (void)piaCheck.read(0);
+ if(!piaCheck.irqA())return fail(34);
+ piaCheck.reset();
+ if(piaCheck.irqA()||piaCheck.irq())return fail(35);
  // Bank selection is independent from the fixed high ROM and reset vector.
  const std::array<std::uint8_t,1> marker0={0x15},marker2={0x2a};
  if(!board.loadBank(0,marker0)||!board.loadBank(2,marker2))return fail(8);
