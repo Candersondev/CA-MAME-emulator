@@ -1,6 +1,8 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <functional>
+#include <utility>
 #include "ca_mame/cpu/ICpu.hpp"
 namespace ca_mame {
 // Motorola MC6809E CPU foundation: big-endian 16-bit bus, reset vector,
@@ -9,6 +11,9 @@ namespace ca_mame {
 class Motorola6809 final : public ICpu {
 public:
     explicit Motorola6809(std::array<std::uint8_t,65536>& memory):memory_(memory){reset();}
+    using ReadHandler=std::function<std::uint8_t(std::uint16_t)>;
+    using WriteHandler=std::function<void(std::uint16_t,std::uint8_t)>;
+    void attachBus(ReadHandler readHandler,WriteHandler writeHandler){readHandler_=std::move(readHandler);writeHandler_=std::move(writeHandler);}
     void reset() override;
     std::uint32_t step() override;
     void requestIrq() noexcept {irq_=true;}
@@ -18,10 +23,12 @@ public:
     std::uint16_t x=0,y=0,u=0,s=0,pc=0;
     std::uint64_t unsupportedOpcodes() const noexcept{return unsupported_;}
     bool halted() const noexcept{return sync_;}
-    std::uint8_t read(std::uint16_t address) const noexcept{return memory_[address];}
-    void write(std::uint16_t address,std::uint8_t value) noexcept{memory_[address]=value;}
+    std::uint8_t read(std::uint16_t address) const {return readHandler_?readHandler_(address):memory_[address];}
+    void write(std::uint16_t address,std::uint8_t value){if(writeHandler_)writeHandler_(address,value);else memory_[address]=value;}
 private:
     std::array<std::uint8_t,65536>& memory_;
+    ReadHandler readHandler_{};
+    WriteHandler writeHandler_{};
     bool irq_=false,firq_=false,nmi_=false,sync_=false;
     std::uint64_t unsupported_=0;
     std::uint8_t fetch(){return read(pc++);}
