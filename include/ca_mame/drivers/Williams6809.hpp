@@ -22,6 +22,8 @@ public:
     std::uint8_t soundCommand() const noexcept{return soundLink_.command();}
     hardware::WilliamsSoundLink& soundLink() noexcept{return soundLink_;}
     std::uint64_t rasterInterrupts() const noexcept{return rasterInterrupts_;}
+    std::uint16_t scanline() const noexcept{return scanline_;}
+    void advanceRaster(std::uint32_t cpuCycles);
     std::string_view driverId() const noexcept override{return "williams6809";}
     void reset() override;
     std::uint64_t runFrame() override;
@@ -54,6 +56,8 @@ private:
     BoardProfile profile_=BoardProfile::Experimental;
     hardware::WilliamsSoundLink soundLink_{};
     std::uint64_t rasterInterrupts_=0;
+    std::uint16_t scanline_=0;
+    std::uint32_t scanlineCycleRemainder_=0;
     bool hardwareBusEnabled_=false;
     std::array<std::uint8_t,8> blitterRegisters_{};
     std::uint64_t cycles_=0,frames_=0;
