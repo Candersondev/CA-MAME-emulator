@@ -1,12 +1,16 @@
 #include "ca_mame/drivers/Williams6809.hpp"
 #include <algorithm>
 namespace ca_mame::drivers {
-Williams6809::Williams6809():cpu_(memory_){reset();}
+Williams6809::Williams6809():cpu_(memory_){
+    cpu_.attachBus([this](std::uint16_t address){return busRead(address);},
+                   [this](std::uint16_t address,std::uint8_t value){busWrite(address,value);});
+    reset();
+}
 void Williams6809::reset(){
     // Preserve loaded program images across board resets.
     cpu_.reset();cycles_=frames_=0;romBank_=0;
     for(auto& pia:pias_)pia.reset();
-    video_.reset();
+    video_.reset();blitterRegisters_.fill(0);
 }
 bool Williams6809::loadProgram(std::uint16_t address,std::span<const std::uint8_t> bytes){
     if(bytes.size()>memory_.size()-address)return false;
@@ -22,6 +26,42 @@ std::uint8_t Williams6809::bankedRead(std::uint16_t address) const noexcept{
     // Preliminary bank window API; CPU bus interception is a later stage.
     if(address<0x4000)return banks_[romBank_][address];
     return memory_[address];
+}
+std::uint8_t Williams6809::busRead(std::uint16_t address){
+    if(!hardwareBusEnabled_)return memory_[address];
+    // Experimental decode, not yet the exact Defender/Robotron board map.
+    if(address<0x4000)return banks_[romBank_][address];
+    if(address>=0x4000 && address<0x4000+0x9800)
+        return video_.read(address-0x4000);
+    if(address>=0xd000 && address<=0xd003)return pias_[0].read(std::uint8_t(address&3));
+    if(address>=0xd004 && address<=0xd007)return pias_[1].read(std::uint8_t(address&3));
+    if(address>=0xd010 && address<=0xd017)return blitterRegisters_[address-0xd010];
+    if(address==0xd020)return romBank_;
+    return memory_[address];
+}
+void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
+    if(!hardwareBusEnabled_){memory_[address]=value;return;}
+    if(address<0x4000)return; // banked ROM window is read-only
+    if(address>=0x4000 && address<0x4000+0x9800){
+        video_.write(address-0x4000,value);return;
+    }
+    if(address>=0xd000 && address<=0xd003){pias_[0].write(std::uint8_t(address&3),value);return;}
+    if(address>=0xd004 && address<=0xd007){pias_[1].write(std::uint8_t(address&3),value);return;}
+    if(address==0xd020){setRomBank(value);return;}
+    if(address>=0xd010 && address<=0xd017){
+        const auto index=unsigned(address-0xd010);
+        blitterRegisters_[index]=value;
+        if(index==7){
+            blitter_.setControl(blitterRegisters_[0]);
+            blitter_.setSolid(blitterRegisters_[1]);
+            blitter_.setSource(std::uint16_t(blitterRegisters_[2]<<8|blitterRegisters_[3]));
+            blitter_.setDestination(std::uint16_t(blitterRegisters_[4]<<8|blitterRegisters_[5]));
+            blitter_.setDimensions(blitterRegisters_[6],blitterRegisters_[7]);
+            blitter_.execute([this](std::uint16_t source){return busRead(source);});
+        }
+        return;
+    }
+    memory_[address]=value;
 }
 std::uint64_t Williams6809::runFrame(){
     // Temporary bounded CPU scheduler, not an accurate Williams video clock.
