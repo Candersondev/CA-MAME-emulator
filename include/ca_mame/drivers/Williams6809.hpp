@@ -7,6 +7,7 @@
 #include "ca_mame/hardware/PIA6821.hpp"
 #include "ca_mame/hardware/WilliamsVideo.hpp"
 #include "ca_mame/hardware/WilliamsBlitter.hpp"
+#include "ca_mame/hardware/WilliamsSoundLink.hpp"
 namespace ca_mame::drivers {
 // Williams 6809 platform foundation (Defender/Robotron lineage).
 // Preliminary flat address space: bank switching, PIA, blitter, sound CPU,
@@ -18,7 +19,8 @@ public:
     Williams6809();
     void setBoardProfile(BoardProfile profile) noexcept {profile_=profile;hardwareBusEnabled_=true;}
     BoardProfile boardProfile() const noexcept{return profile_;}
-    std::uint8_t soundCommand() const noexcept{return soundCommand_;}
+    std::uint8_t soundCommand() const noexcept{return soundLink_.command();}
+    hardware::WilliamsSoundLink& soundLink() noexcept{return soundLink_;}
     std::uint64_t rasterInterrupts() const noexcept{return rasterInterrupts_;}
     std::string_view driverId() const noexcept override{return "williams6809";}
     void reset() override;
@@ -50,7 +52,7 @@ private:
     std::array<std::array<std::uint8_t,0x4000>,4> banks_{};
     std::uint8_t romBank_=0;
     BoardProfile profile_=BoardProfile::Experimental;
-    std::uint8_t soundCommand_=0;
+    hardware::WilliamsSoundLink soundLink_{};
     std::uint64_t rasterInterrupts_=0;
     bool hardwareBusEnabled_=false;
     std::array<std::uint8_t,8> blitterRegisters_{};
