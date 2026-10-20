@@ -63,8 +63,8 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                 const auto solid=specialChipRegisters_[1];
                 const auto source=std::uint16_t((unsigned(specialChipRegisters_[2])<<8)|specialChipRegisters_[3]);
                 const auto destination=std::uint16_t((unsigned(specialChipRegisters_[4])<<8)|specialChipRegisters_[5]);
-                const auto width=unsigned(specialChipRegisters_[6]);
-                const auto height=unsigned(specialChipRegisters_[7]);
+                const auto width=unsigned(specialChipRegisters_[6]^4u);
+                const auto height=unsigned(specialChipRegisters_[7]^4u);
                 // Serial step 1; screen format step 256. Size decoding is provisional.
                 const auto srcStep=(control&1)?256u:1u;
                 const auto dstStep=(control&2)?256u:1u;
