@@ -26,6 +26,10 @@ int main(){
  if(!pia.irq() || !(pia.read(1)&0x80))return fail(7);
  pia.read(0);
  if(pia.irq())return fail(8);
+ pia.edgeCA1(true);
+ if(!pia.irqA()||pia.irqB())return fail(10);
+ pia.clearInterrupts();
+ if(pia.irqA()||pia.irqB()||pia.irq())return fail(11);
  ca_mame::hardware::WilliamsVideo video;
  video.reset();video.setPalette(1,255,0,0);video.setPalette(2,0,255,0);
  video.write(0,0x12);
