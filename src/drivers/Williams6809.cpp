@@ -10,7 +10,7 @@ void Williams6809::reset(){
     // Preserve loaded program images across board resets.
     cpu_.reset();cycles_=frames_=0;romBank_=0;
     for(auto& pia:pias_)pia.reset();
-    video_.reset();blitterRegisters_.fill(0);soundCommand_=0;rasterInterrupts_=0;
+    video_.reset();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;
 }
 bool Williams6809::loadProgram(std::uint16_t address,std::span<const std::uint8_t> bytes){
     if(bytes.size()>memory_.size()-address)return false;
@@ -34,7 +34,7 @@ std::uint8_t Williams6809::busRead(std::uint16_t address){
         if(address>=0xc804 && address<=0xc807)return pias_[0].read(std::uint8_t(address&3));
         if(address>=0xc80c && address<=0xc80f)return pias_[1].read(std::uint8_t(address&3));
         if(address==0xc900)return romBank_;
-        if(address==0xc980)return soundCommand_;
+        if(address==0xc980)return soundLink_.command();
     }
     if(address<0x4000)return banks_[romBank_][address];
     if(address>=0x4000 && address<0xd000)
@@ -51,7 +51,7 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
         if(address>=0xc804 && address<=0xc807){pias_[0].write(std::uint8_t(address&3),value);return;}
         if(address>=0xc80c && address<=0xc80f){pias_[1].write(std::uint8_t(address&3),value);return;}
         if(address==0xc900){setRomBank(value);return;}
-        if(address==0xc980){soundCommand_=value;pias_[1].setPortB(value);return;}
+        if(address==0xc980){soundLink_.send(value);pias_[1].setPortB(value);return;}
     }
     if(address<0x4000)return; // banked ROM window is read-only
     if(address>=0x4000 && address<0xd000){
