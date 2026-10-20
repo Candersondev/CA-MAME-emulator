@@ -16,6 +16,30 @@ public:
     }
     void setControl(std::uint8_t value) noexcept {control_=value;}
     void setSolid(std::uint8_t value) noexcept {solid_=value;}
+    // Generic memory callbacks allow board-addressed DMA while preserving
+    // the legacy framebuffer-offset execute(Read) interface.
+    template<class Read, class Write>
+    std::uint32_t executeBus(Read read, Write write) noexcept {
+        std::uint32_t count=0;
+        for(unsigned row=0;row<height_;++row)
+            for(unsigned col=0;col<width_;++col){
+                const auto src=std::uint16_t(source_+row*width_+col);
+                const auto dst=std::uint16_t(destination_+row*width_+col);
+                const std::uint8_t value=(control_&4)?solid_:read(src);
+                const auto previous=read(dst);
+                std::uint8_t result=previous;
+                for(unsigned shift:{0u,4u}){
+                    const auto nibble=std::uint8_t((value>>shift)&15);
+                    if((control_&1)&&nibble==0)continue;
+                    const auto prior=std::uint8_t((previous>>shift)&15);
+                    const auto updated=std::uint8_t((control_&2)?(prior^nibble):nibble);
+                    result=std::uint8_t((result&~(15u<<shift))|(updated<<shift));
+                }
+                write(dst,result);
+                ++count;
+            }
+        return count;
+    }
     template<class Read>
     std::uint32_t execute(Read read) noexcept {
         std::uint32_t count=0;
