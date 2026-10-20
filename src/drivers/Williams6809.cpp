@@ -8,7 +8,7 @@ Williams6809::Williams6809():cpu_(memory_){
 }
 void Williams6809::reset(){
     // Preserve loaded program images across board resets.
-    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;specialChipRegisters_.fill(0);specialChipStarts_=0;
+    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;specialChipRegisters_.fill(0);specialChipStarts_=0;specialChipBytes_=specialChipEstimatedCycles_=0;
     for(auto& pia:pias_)pia.reset();
     video_.reset();blitter_.resetStatistics();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
 }
@@ -57,7 +57,48 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
         if(profile_==BoardProfile::Robotron && address>=0xca00 && address<=0xca07){
             const auto index=unsigned(address-0xca00);
             specialChipRegisters_[index]=value;
-            if(index==0)++specialChipStarts_; // Command strobe; DMA engine pending.
+            if(index==0){
+                ++specialChipStarts_;
+                const auto control=specialChipRegisters_[0];
+                const auto solid=specialChipRegisters_[1];
+                const auto source=std::uint16_t((unsigned(specialChipRegisters_[2])<<8)|specialChipRegisters_[3]);
+                const auto destination=std::uint16_t((unsigned(specialChipRegisters_[4])<<8)|specialChipRegisters_[5]);
+                const auto width=unsigned(specialChipRegisters_[6]);
+                const auto height=unsigned(specialChipRegisters_[7]);
+                // Serial step 1; screen format step 256. Size decoding is provisional.
+                const auto srcStep=(control&1)?256u:1u;
+                const auto dstStep=(control&2)?256u:1u;
+                for(unsigned row=0;row<height;++row){
+                    auto src=std::uint16_t(source+row*width*srcStep);
+                    auto dst=std::uint16_t(destination+row*width*dstStep);
+                    std::uint8_t shiftCarry=0;
+                    for(unsigned col=0;col<width;++col){
+                        const auto raw=busRead(src);
+                        auto value=std::uint8_t((control&0x10)?solid:raw);
+                        if(control&0x20){
+                            const auto shifted=std::uint8_t((value>>4)|shiftCarry);
+                            shiftCarry=std::uint8_t(value<<4);
+                            value=shifted;
+                        }
+                        const auto previous=busRead(dst);
+                        std::uint8_t mask=0xff;
+                        if(control&0x08){
+                            const auto foreground=std::uint8_t((control&0x10)?raw:value);
+                            if(!(foreground&0xf0))mask&=0x0f;
+                            if(!(foreground&0x0f))mask&=0xf0;
+                        }
+                        if(control&0x40)mask&=0xf0;
+                        if(control&0x80)mask&=0x0f;
+                        const auto result=std::uint8_t((previous&~mask)|(value&mask));
+                        if(dst>=0x4000 && dst<0xd000)busWrite(dst,result);
+                        else ++rejectedDmaWrites_;
+                        ++specialChipBytes_;
+                        specialChipEstimatedCycles_+=(control&4)?2u:1u;
+                        src=std::uint16_t(src+srcStep);
+                        dst=std::uint16_t(dst+dstStep);
+                    }
+                }
+            }
             return;
         }
         if(address==0xc900){setRomBank(value);return;}

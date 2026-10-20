@@ -30,6 +30,26 @@ int main(){
  if(board.specialChipStarts()!=0||board.specialChipRegister(1)!=0xf0)return fail(12);
  board.busWrite(0xca00,0x00);
  if(board.specialChipStarts()!=1||board.busRead(0xca00)!=0)return fail(13);
+ board.busWrite(0x4000,0x9c);
+ board.busWrite(0xca02,0x40);board.busWrite(0xca03,0x00);
+ board.busWrite(0xca04,0x40);board.busWrite(0xca05,0x20);
+ board.busWrite(0xca06,1);board.busWrite(0xca07,1);
+ board.busWrite(0xca00,0);
+ if(board.busRead(0x4020)!=0x9c||board.specialChipBytes()!=7)return fail(15);
+ board.busWrite(0x4001,0x0f);board.busWrite(0x4021,0xa5);
+ board.busWrite(0xca01,0x77);
+ board.busWrite(0xca03,0x01);board.busWrite(0xca05,0x21);
+ board.busWrite(0xca00,0x18);
+ if(board.busRead(0x4021)!=0xa7)return fail(16);
+ board.busWrite(0xca01,0x32);board.busWrite(0xca00,0x50);
+ if(board.busRead(0x4021)!=0x37)return fail(17);
+ board.busWrite(0x4100,0x56);
+ board.busWrite(0xca02,0x40);board.busWrite(0xca03,0x00);
+ board.busWrite(0xca04,0x40);board.busWrite(0xca05,0x22);
+ board.busWrite(0xca06,2);board.busWrite(0xca07,1);
+ board.busWrite(0xca00,1);
+ if(board.busRead(0x4022)!=0x9c||board.busRead(0x4023)!=0x56)return fail(18);
+ if(board.specialChipEstimatedCycles()<board.specialChipBytes())return fail(19);
  board.busWrite(0xc900,2);
  if(board.busRead(0)!=0x2a)return fail(10);
  if(board.romBank()!=2||board.busRead(0xc900)!=2)return fail(3);
@@ -45,5 +65,6 @@ int main(){
  if(board.soundCommand()!=0||board.rasterInterrupts()!=0||board.romBank()!=0)return fail(7);
  if(board.busRead(0)!=0x15||board.cpu().pc!=0xe000)return fail(11);
  if(board.specialChipStarts()!=0||board.specialChipRegister(1)!=0)return fail(14);
+ if(board.specialChipBytes()!=0||board.specialChipEstimatedCycles()!=0)return fail(20);
  return 0;
 }
