@@ -31,7 +31,7 @@ std::uint8_t Williams6809::busRead(std::uint16_t address){
     if(!hardwareBusEnabled_)return memory_[address];
     // Experimental decode, not yet the exact Defender/Robotron board map.
     if(address<0x4000)return banks_[romBank_][address];
-    if(address>=0x4000 && address<0x4000+0x9800)
+    if(address>=0x4000 && address<0xd000)
         return video_.read(address-0x4000);
     if(address>=0xd000 && address<=0xd003)return pias_[0].read(std::uint8_t(address&3));
     if(address>=0xd004 && address<=0xd007)return pias_[1].read(std::uint8_t(address&3));
@@ -42,7 +42,7 @@ std::uint8_t Williams6809::busRead(std::uint16_t address){
 void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
     if(!hardwareBusEnabled_){memory_[address]=value;return;}
     if(address<0x4000)return; // banked ROM window is read-only
-    if(address>=0x4000 && address<0x4000+0x9800){
+    if(address>=0x4000 && address<0xd000){
         video_.write(address-0x4000,value);return;
     }
     if(address>=0xd000 && address<=0xd003){pias_[0].write(std::uint8_t(address&3),value);return;}
