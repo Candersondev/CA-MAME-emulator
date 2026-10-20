@@ -10,7 +10,7 @@ void Williams6809::reset(){
     // Preserve loaded program images across board resets.
     cpu_.reset();cycles_=frames_=0;romBank_=0;
     for(auto& pia:pias_)pia.reset();
-    video_.reset();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;
+    video_.reset();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
 }
 bool Williams6809::loadProgram(std::uint16_t address,std::span<const std::uint8_t> bytes){
     if(bytes.size()>memory_.size()-address)return false;
@@ -75,11 +75,27 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
     }
     memory_[address]=value;
 }
+void Williams6809::advanceRaster(std::uint32_t cpuCycles){
+    if(profile_==BoardProfile::Experimental)return;
+    // Approximate 256 lines/frame at a nominal 1 MHz / 60 Hz CPU clock.
+    // Exact Williams beam clocks and scanline interrupt positions are pending.
+    scanlineCycleRemainder_+=cpuCycles*256u;
+    while(scanlineCycleRemainder_>=16667u){
+        scanlineCycleRemainder_-=16667u;
+        scanline_=std::uint16_t((scanline_+1)%256);
+        if(scanline_==0){
+            ++rasterInterrupts_;
+            pias_[0].edgeCA1(true);
+            if(pias_[0].irq())cpu_.requestIrq();
+        }
+    }
+}
 Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycleBudget){
     const auto target=cycles_+cycleBudget;
     while(cycles_<target && !cpu_.halted()){
         const auto spent=cpu_.step();
         cycles_+=spent?spent:1;
+        advanceRaster(spent?spent:1);
     }
     return {cpu_.pc,cycles_,cpu_.unsupportedOpcodes(),cpu_.halted()};
 }
@@ -88,13 +104,10 @@ std::uint64_t Williams6809::runFrame(){
     const auto target=++frames_*1000000ull/60;
     const auto before=cycles_;
     while(cycles_<target){
-        cycles_+=cpu_.step();
+        const auto spent=cpu_.step();
+        cycles_+=spent;
+        advanceRaster(spent);
         if(cpu_.halted())break; // unsupported opcode or SYNC: fail closed
-    }
-    if(profile_!=BoardProfile::Experimental){
-        ++rasterInterrupts_;
-        pias_[0].edgeCA1(true);
-        if(pias_[0].irq())cpu_.requestIrq();
     }
     return cycles_-before;
 }
