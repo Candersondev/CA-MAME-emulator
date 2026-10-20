@@ -42,9 +42,21 @@ int main(){
  board.busWrite(0xd014,0x40);board.busWrite(0xd015,0x01);
  board.busWrite(0xd016,1);board.busWrite(0xd017,1);
  if(board.busRead(0x4001)!=0x34)return fail(10);
+ if(board.lastBlitBytes()!=1||board.blitterBytes()!=2)return fail(11);
+ // Transparency preserves zero nibbles; XOR modifies only nonzero nibbles.
+ board.busWrite(0x4002,0xab);
+ board.busWrite(0xd010,0x07); // solid, transparent, XOR
+ board.busWrite(0xd011,0x30);
+ board.busWrite(0xd014,0x40);board.busWrite(0xd015,0x02);
+ board.busWrite(0xd016,1);board.busWrite(0xd017,1);
+ if(board.busRead(0x4002)!=0x9b)return fail(12);
+ // Zero-sized DMA must be a no-op, with no transfer count.
+ board.busWrite(0xd016,0);board.busWrite(0xd017,1);
+ if(board.lastBlitBytes()!=0||board.blitterBytes()!=3)return fail(13);
  board.busWrite(0x0000,0xaa);
  if(board.busRead(0x0000)!=bank1[0])return fail(8); // ROM is write-protected
  board.reset();
  if(board.romBank()!=0||board.video().read(0)!=0)return fail(9);
+ if(board.blitterBytes()!=0||board.lastBlitBytes()!=0)return fail(14);
  return 0;
 }
