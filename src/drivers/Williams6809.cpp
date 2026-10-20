@@ -37,8 +37,11 @@ std::uint8_t Williams6809::busRead(std::uint16_t address){
         if(address==0xc980)return soundLink_.command();
     }
     if(address<0x4000)return banks_[romBank_][address];
-    if(address>=0x4000 && address<0xd000)
-        return video_.read(address-0x4000);
+    if(address>=0x4000 && address<0xd000){
+        const auto offset=unsigned(address-0x4000);
+        if(offset<Width*Height/2)return video_.read(offset);
+        return memory_[address];
+    }
     if(address>=0xd000 && address<=0xd003)return pias_[0].read(std::uint8_t(address&3));
     if(address>=0xd004 && address<=0xd007)return pias_[1].read(std::uint8_t(address&3));
     if(address>=0xd010 && address<=0xd017)return blitterRegisters_[address-0xd010];
@@ -55,7 +58,10 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
     }
     if(address<0x4000)return; // banked ROM window is read-only
     if(address>=0x4000 && address<0xd000){
-        video_.write(address-0x4000,value);return;
+        const auto offset=unsigned(address-0x4000);
+        if(offset<Width*Height/2)video_.write(offset,value);
+        else memory_[address]=value;
+        return;
     }
     if(address>=0xd000 && address<=0xd003){pias_[0].write(std::uint8_t(address&3),value);return;}
     if(address>=0xd004 && address<=0xd007){pias_[1].write(std::uint8_t(address&3),value);return;}
@@ -75,7 +81,7 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                 [this](std::uint16_t address){return busRead(address);},
                 [this](std::uint16_t address,std::uint8_t data){
                     if(address>=0x4000 && address<0xd000)
-                        video_.write(address-0x4000,data);
+                        busWrite(address,data);
                 });
         }
         return;
@@ -100,7 +106,8 @@ void Williams6809::advanceRaster(std::uint32_t cpuCycles){
     scanlineCycleRemainder_=static_cast<std::uint32_t>(accumulated);
 }
 Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycleBudget){
-    const auto target=cycles_+cycleBudget;
+    const auto remaining=~std::uint64_t{0}-cycles_;
+    const auto target=cycles_+(cycleBudget<remaining?cycleBudget:remaining);
     while(cycles_<target && !cpu_.halted()){
         const auto spent=cpu_.step();
         cycles_+=spent?spent:1;

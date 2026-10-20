@@ -10,8 +10,8 @@
 #include "ca_mame/hardware/WilliamsSoundLink.hpp"
 namespace ca_mame::drivers {
 // Williams 6809 platform foundation (Defender/Robotron lineage).
-// Preliminary flat address space: bank switching, PIA, blitter, sound CPU,
-// palette and real raster timing are not yet modeled.
+// Experimental hardware bus with ROM banks, PIA, sound command, framebuffer
+// and DMA. Board-specific decoding and cycle-exact timing remain incomplete.
 class Williams6809 final:public IMachine {
 public:
     static constexpr std::size_t Width=304,Height=256;
