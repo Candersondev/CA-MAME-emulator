@@ -50,6 +50,23 @@ int main(){
  board.busWrite(0xca00,1);
  if(board.busRead(0x4022)!=0x9c||board.busRead(0x4023)!=0x56)return fail(18);
  if(board.specialChipEstimatedCycles()<board.specialChipBytes())return fail(19);
+ // Regression: overlapping copies must read each byte at transfer time,
+ // not snapshot the entire source before starting.
+ board.busWrite(0x4040,0x11);
+ board.busWrite(0x4041,0x22);
+ board.busWrite(0x4042,0x33);
+ board.busWrite(0xca02,0x40);board.busWrite(0xca03,0x40);
+ board.busWrite(0xca04,0x40);board.busWrite(0xca05,0x41);
+ board.busWrite(0xca06,7);board.busWrite(0xca07,5);
+ board.busWrite(0xca00,0);
+ if(board.busRead(0x4041)!=0x11||board.busRead(0x4042)!=0x11||board.busRead(0x4043)!=0x11)return fail(26);
+ // Destination crossing FFFF must not write to banked ROM or I/O.
+ const auto rejectedBeforeWrap=board.rejectedDmaWrites();
+ board.busWrite(0xca02,0x40);board.busWrite(0xca03,0x40);
+ board.busWrite(0xca04,0xff);board.busWrite(0xca05,0xff);
+ board.busWrite(0xca06,6);board.busWrite(0xca07,5);
+ board.busWrite(0xca00,0);
+ if(board.rejectedDmaWrites()!=rejectedBeforeWrap+2)return fail(27);
  // Direct register writes defer bus contention until CPU scheduling.
  const auto pending=board.pendingDmaCycles();
  if(!pending||board.dmaStallCycles()!=0)return fail(21);

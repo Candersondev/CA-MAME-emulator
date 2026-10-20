@@ -69,6 +69,7 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                 const auto srcStep=(control&1)?256u:1u;
                 const auto dstStep=(control&2)?256u:1u;
                 for(unsigned row=0;row<height;++row){
+                    // Wrap every DMA address in the 6809's 16-bit address space.
                     auto src=std::uint16_t(source+row*width*srcStep);
                     auto dst=std::uint16_t(destination+row*width*dstStep);
                     std::uint8_t shiftCarry=0;
@@ -90,6 +91,8 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                         if(control&0x40)mask&=0xf0;
                         if(control&0x80)mask&=0x0f;
                         const auto result=std::uint8_t((previous&~mask)|(value&mask));
+                        // Only writable framebuffer/RAM may be modified by
+                        // the current board model. Never recurse into I/O.
                         if(dst>=0x4000 && dst<0xd000)busWrite(dst,result);
                         else ++rejectedDmaWrites_;
                         ++specialChipBytes_;
