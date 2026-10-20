@@ -19,6 +19,7 @@ public:
     }
     void setControl(std::uint8_t value) noexcept {control_=value;}
     void setSolid(std::uint8_t value) noexcept {solid_=value;}
+    // Addresses wrap modulo 65536; each byte is read before its write.
     // Generic memory callbacks allow board-addressed DMA while preserving
     // the legacy framebuffer-offset execute(Read) interface.
     template<class Read, class Write>

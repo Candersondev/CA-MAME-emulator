@@ -18,7 +18,12 @@ int main(){
  if(!board.loadProgram(0xfffe,vector)||!board.loadProgram(0xe000,loop))return fail(2);
  board.setBoardProfile(ca_mame::drivers::Williams6809::BoardProfile::Robotron);
  board.reset();
+ // Bank selection is independent from the fixed high ROM and reset vector.
+ const std::array<std::uint8_t,1> marker0={0x15},marker2={0x2a};
+ if(!board.loadBank(0,marker0)||!board.loadBank(2,marker2))return fail(8);
+ if(board.busRead(0)!=0x15)return fail(9);
  board.busWrite(0xc900,2);
+ if(board.busRead(0)!=0x2a)return fail(10);
  if(board.romBank()!=2||board.busRead(0xc900)!=2)return fail(3);
  board.busWrite(0xc980,0x5a);
  if(board.soundCommand()!=0x5a||board.busRead(0xc980)!=0x5a)return fail(4);
@@ -30,5 +35,6 @@ int main(){
  if(board.rasterInterrupts()!=1||!board.pia(0).irq())return fail(6);
  board.reset();
  if(board.soundCommand()!=0||board.rasterInterrupts()!=0||board.romBank()!=0)return fail(7);
+ if(board.busRead(0)!=0x15||board.cpu().pc!=0xe000)return fail(11);
  return 0;
 }

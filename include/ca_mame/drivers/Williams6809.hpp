@@ -24,6 +24,8 @@ public:
     std::uint64_t rasterInterrupts() const noexcept{return rasterInterrupts_;}
     std::uint64_t blitterBytes() const noexcept{return blitter_.totalBytes();}
     std::uint32_t lastBlitBytes() const noexcept{return blitter_.lastBytes();}
+    std::uint64_t rejectedDmaWrites() const noexcept{return rejectedDmaWrites_;}
+    std::uint8_t blitterRegister(unsigned index) const noexcept{return blitterRegisters_[index&7];}
     std::uint16_t scanline() const noexcept{return scanline_;}
     void advanceRaster(std::uint32_t cpuCycles);
     std::string_view driverId() const noexcept override{return "williams6809";}
@@ -63,5 +65,6 @@ private:
     bool hardwareBusEnabled_=false;
     std::array<std::uint8_t,8> blitterRegisters_{};
     std::uint64_t cycles_=0,frames_=0;
+    std::uint64_t rejectedDmaWrites_=0;
 };
 }

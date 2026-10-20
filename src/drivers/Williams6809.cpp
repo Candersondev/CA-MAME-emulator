@@ -8,7 +8,7 @@ Williams6809::Williams6809():cpu_(memory_){
 }
 void Williams6809::reset(){
     // Preserve loaded program images across board resets.
-    cpu_.reset();cycles_=frames_=0;romBank_=0;
+    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;
     for(auto& pia:pias_)pia.reset();
     video_.reset();blitter_.resetStatistics();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
 }
@@ -23,7 +23,7 @@ bool Williams6809::loadBank(std::uint8_t bank,std::span<const std::uint8_t> byte
     return true;
 }
 std::uint8_t Williams6809::bankedRead(std::uint16_t address) const noexcept{
-    // Preliminary bank window API; CPU bus interception is a later stage.
+    // Diagnostic bank read; CPU bus interception uses the same bank window.
     if(address<0x4000)return banks_[romBank_][address];
     return memory_[address];
 }
@@ -82,6 +82,7 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                 [this](std::uint16_t address,std::uint8_t data){
                     if(address>=0x4000 && address<0xd000)
                         busWrite(address,data);
+                    else ++rejectedDmaWrites_;
                 });
         }
         return;

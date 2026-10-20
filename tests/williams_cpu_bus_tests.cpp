@@ -63,10 +63,19 @@ int main(){
  board.busWrite(0xd014,0xb8);board.busWrite(0xd015,0x00);
  board.busWrite(0xd016,1);board.busWrite(0xd017,1);
  if(board.busRead(0xb800)!=0x5e)return fail(17);
+ // DMA must not overwrite ROM or recurse into device registers.
+ board.busWrite(0xd014,0x00);board.busWrite(0xd015,0x00);
+ board.busWrite(0xd016,1);board.busWrite(0xd017,1);
+ if(board.rejectedDmaWrites()!=1||board.busRead(0)!=bank1[0])return fail(18);
+ board.busWrite(0xd014,0xd0);board.busWrite(0xd015,0x20);
+ board.busWrite(0xd016,1);board.busWrite(0xd017,1);
+ if(board.rejectedDmaWrites()!=2||board.romBank()!=1)return fail(19);
+ if(board.blitterRegister(7)!=1)return fail(20);
  board.busWrite(0x0000,0xaa);
  if(board.busRead(0x0000)!=bank1[0])return fail(8); // ROM is write-protected
  board.reset();
  if(board.romBank()!=0||board.video().read(0)!=0)return fail(9);
  if(board.blitterBytes()!=0||board.lastBlitBytes()!=0)return fail(14);
+ if(board.rejectedDmaWrites()!=0)return fail(21);
  return 0;
 }
