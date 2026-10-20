@@ -50,6 +50,13 @@ int main(){
  board.busWrite(0xca00,1);
  if(board.busRead(0x4022)!=0x9c||board.busRead(0x4023)!=0x56)return fail(18);
  if(board.specialChipEstimatedCycles()<board.specialChipBytes())return fail(19);
+ // Direct register writes defer bus contention until CPU scheduling.
+ const auto pending=board.pendingDmaCycles();
+ if(!pending||board.dmaStallCycles()!=0)return fail(21);
+ const auto before=board.elapsedCycles();
+ const auto diag=board.runBootDiagnostic(1);
+ if(board.pendingDmaCycles()!=0||board.dmaStallCycles()!=pending)return fail(22);
+ if(diag.cycles-before<1+pending)return fail(23);
  board.busWrite(0xc900,2);
  if(board.busRead(0)!=0x2a)return fail(10);
  if(board.romBank()!=2||board.busRead(0xc900)!=2)return fail(3);
@@ -66,5 +73,6 @@ int main(){
  if(board.busRead(0)!=0x15||board.cpu().pc!=0xe000)return fail(11);
  if(board.specialChipStarts()!=0||board.specialChipRegister(1)!=0)return fail(14);
  if(board.specialChipBytes()!=0||board.specialChipEstimatedCycles()!=0)return fail(20);
+ if(board.pendingDmaCycles()!=0||board.dmaStallCycles()!=0)return fail(24);
  return 0;
 }

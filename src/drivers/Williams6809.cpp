@@ -8,7 +8,7 @@ Williams6809::Williams6809():cpu_(memory_){
 }
 void Williams6809::reset(){
     // Preserve loaded program images across board resets.
-    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;specialChipRegisters_.fill(0);specialChipStarts_=0;specialChipBytes_=specialChipEstimatedCycles_=0;
+    cpu_.reset();cycles_=frames_=0;romBank_=0;rejectedDmaWrites_=0;specialChipRegisters_.fill(0);specialChipStarts_=0;specialChipBytes_=specialChipEstimatedCycles_=0;pendingDmaCycles_=dmaStallCycles_=0;
     for(auto& pia:pias_)pia.reset();
     video_.reset();blitter_.resetStatistics();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
 }
@@ -93,7 +93,9 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
                         if(dst>=0x4000 && dst<0xd000)busWrite(dst,result);
                         else ++rejectedDmaWrites_;
                         ++specialChipBytes_;
-                        specialChipEstimatedCycles_+=(control&4)?2u:1u;
+                        const auto dmaCost=(control&4)?2u:1u;
+                        specialChipEstimatedCycles_+=dmaCost;
+                        pendingDmaCycles_+=dmaCost;
                         src=std::uint16_t(src+srcStep);
                         dst=std::uint16_t(dst+dstStep);
                     }
@@ -154,6 +156,17 @@ void Williams6809::advanceRaster(std::uint32_t cpuCycles){
     }
     scanlineCycleRemainder_=static_cast<std::uint32_t>(accumulated);
 }
+void Williams6809::settleDmaCycles() noexcept {
+    // Transfers execute immediately in memory, but consume simulated CPU time
+    // at the next scheduler boundary. No physical bus-cycle interleaving yet.
+    while(pendingDmaCycles_){
+        const auto chunk=std::uint32_t(std::min<std::uint64_t>(pendingDmaCycles_,0xffffffffull));
+        pendingDmaCycles_-=chunk;
+        dmaStallCycles_+=chunk;
+        cycles_+=chunk;
+        advanceRaster(chunk);
+    }
+}
 Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycleBudget){
     const auto remaining=~std::uint64_t{0}-cycles_;
     const auto target=cycles_+(cycleBudget<remaining?cycleBudget:remaining);
@@ -162,6 +175,7 @@ Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycle
         const auto spent=cpu_.step();
         cycles_+=spent?spent:1;
         advanceRaster(spent?spent:1);
+        settleDmaCycles();
     }
     return {cpu_.pc,cycles_,cpu_.unsupportedOpcodes(),cpu_.halted()};
 }
@@ -176,6 +190,7 @@ std::uint64_t Williams6809::runFrame(){
         const auto advanced=spent?spent:1;
         cycles_+=advanced;
         advanceRaster(advanced);
+        settleDmaCycles();
         if(cpu_.halted())break; // unsupported opcode or SYNC: fail closed
     }
     return cycles_-before;
