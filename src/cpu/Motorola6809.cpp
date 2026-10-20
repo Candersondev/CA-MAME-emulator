@@ -27,11 +27,11 @@ std::uint32_t Motorola6809::step(){
  switch(op){
  case 0x12:return 2; // NOP
  case 0x13:sync_=true;return 4; // SYNC
- case 0x20:pc=std::uint16_t(pc+static_cast<std::int8_t>(fetch()));return 3; // BRA
+ case 0x20:{const auto displacement=static_cast<std::int8_t>(fetch());pc=std::uint16_t(pc+displacement);return 3;} // BRA
  case 0x21:fetch();return 3; // BRN
  case 0x26:{auto d=static_cast<std::int8_t>(fetch());if(!(cc&4))pc=std::uint16_t(pc+d);return 3;}
  case 0x27:{auto d=static_cast<std::int8_t>(fetch());if(cc&4)pc=std::uint16_t(pc+d);return 3;}
- case 0x16:{auto d=static_cast<std::int16_t>(fetch16());pc=std::uint16_t(pc+d);return 5;} // LBRA
+ case 0x16:{const auto displacement=static_cast<std::int16_t>(fetch16());pc=std::uint16_t(pc+displacement);return 5;} // LBRA
  case 0x17:{auto d=static_cast<std::int16_t>(fetch16());push16(pc);pc=std::uint16_t(pc+d);return 9;} // LBSR
  case 0x39:pc=pop16();return 5; // RTS
  case 0x3b:{ // RTI: CC then entire frame when E flag set
