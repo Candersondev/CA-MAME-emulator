@@ -10,7 +10,7 @@ void Williams6809::reset(){
     // Preserve loaded program images across board resets.
     cpu_.reset();cycles_=frames_=0;romBank_=0;
     for(auto& pia:pias_)pia.reset();
-    video_.reset();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
+    video_.reset();blitter_.resetStatistics();blitterRegisters_.fill(0);soundLink_.reset();rasterInterrupts_=0;scanline_=0;scanlineCycleRemainder_=0;
 }
 bool Williams6809::loadProgram(std::uint16_t address,std::span<const std::uint8_t> bytes){
     if(bytes.size()>memory_.size()-address)return false;
