@@ -30,6 +30,10 @@ public:
     std::uint8_t romBank() const noexcept{return romBank_;}
     bool loadBank(std::uint8_t bank,std::span<const std::uint8_t> bytes);
     std::uint8_t bankedRead(std::uint16_t address) const noexcept;
+    void enableHardwareBus(bool enabled=true) noexcept {hardwareBusEnabled_=enabled;}
+    bool hardwareBusEnabled() const noexcept{return hardwareBusEnabled_;}
+    std::uint8_t busRead(std::uint16_t address);
+    void busWrite(std::uint16_t address,std::uint8_t value);
 private:
     std::array<std::uint8_t,65536> memory_{};
     Motorola6809 cpu_;
@@ -38,6 +42,8 @@ private:
     hardware::WilliamsBlitter blitter_{video_};
     std::array<std::array<std::uint8_t,0x4000>,4> banks_{};
     std::uint8_t romBank_=0;
+    bool hardwareBusEnabled_=false;
+    std::array<std::uint8_t,8> blitterRegisters_{};
     std::uint64_t cycles_=0,frames_=0;
 };
 }
