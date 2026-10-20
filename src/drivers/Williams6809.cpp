@@ -63,6 +63,14 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
     }
     memory_[address]=value;
 }
+Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycleBudget){
+    const auto target=cycles_+cycleBudget;
+    while(cycles_<target && !cpu_.halted()){
+        const auto spent=cpu_.step();
+        cycles_+=spent?spent:1;
+    }
+    return {cpu_.pc,cycles_,cpu_.unsupportedOpcodes(),cpu_.halted()};
+}
 std::uint64_t Williams6809::runFrame(){
     // Temporary bounded CPU scheduler, not an accurate Williams video clock.
     const auto target=++frames_*1000000ull/60;
