@@ -69,7 +69,14 @@ void Williams6809::busWrite(std::uint16_t address,std::uint8_t value){
             blitter_.setSource(std::uint16_t(blitterRegisters_[2]<<8|blitterRegisters_[3]));
             blitter_.setDestination(std::uint16_t(blitterRegisters_[4]<<8|blitterRegisters_[5]));
             blitter_.setDimensions(blitterRegisters_[6],blitterRegisters_[7]);
-            blitter_.execute([this](std::uint16_t source){return busRead(source);});
+            // Register-triggered DMA uses CPU-visible addresses for both ends.
+            // Avoid recursive hardware-register writes during DMA.
+            blitter_.executeBus(
+                [this](std::uint16_t address){return busRead(address);},
+                [this](std::uint16_t address,std::uint8_t data){
+                    if(address>=0x4000 && address<0xd000)
+                        video_.write(address-0x4000,data);
+                });
         }
         return;
     }
