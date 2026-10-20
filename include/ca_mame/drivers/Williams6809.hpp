@@ -14,7 +14,12 @@ namespace ca_mame::drivers {
 class Williams6809 final:public IMachine {
 public:
     static constexpr std::size_t Width=304,Height=256;
+    enum class BoardProfile {Experimental,Defender,Robotron};
     Williams6809();
+    void setBoardProfile(BoardProfile profile) noexcept {profile_=profile;hardwareBusEnabled_=true;}
+    BoardProfile boardProfile() const noexcept{return profile_;}
+    std::uint8_t soundCommand() const noexcept{return soundCommand_;}
+    std::uint64_t rasterInterrupts() const noexcept{return rasterInterrupts_;}
     std::string_view driverId() const noexcept override{return "williams6809";}
     void reset() override;
     std::uint64_t runFrame() override;
@@ -44,6 +49,9 @@ private:
     hardware::WilliamsBlitter blitter_{video_};
     std::array<std::array<std::uint8_t,0x4000>,4> banks_{};
     std::uint8_t romBank_=0;
+    BoardProfile profile_=BoardProfile::Experimental;
+    std::uint8_t soundCommand_=0;
+    std::uint64_t rasterInterrupts_=0;
     bool hardwareBusEnabled_=false;
     std::array<std::uint8_t,8> blitterRegisters_{};
     std::uint64_t cycles_=0,frames_=0;
