@@ -38,6 +38,7 @@ private:
     std::uint16_t pop16(){auto hi=pop8();return std::uint16_t(hi<<8|pop8());}
     void setNZ8(std::uint8_t v){cc=std::uint8_t((cc&~0x0c)|(v&0x80?8:0)|(v==0?4:0));}
     void setNZ16(std::uint16_t v){cc=std::uint8_t((cc&~0x0c)|(v&0x8000?8:0)|(v==0?4:0));}
+    std::uint16_t indexedAddress(bool& valid,unsigned& extraCycles);
     std::uint32_t interrupt(std::uint16_t vector,bool entire);
 };
 }
