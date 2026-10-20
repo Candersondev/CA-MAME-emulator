@@ -88,6 +88,47 @@ std::uint32_t Motorola6809::step(){
       default:write16(addr,u);setNZ16(u);cc&=std::uint8_t(~2);return 5+extra;
     }
  }
+ case 0x1f:{ // TFR register transfer
+    const auto post=fetch();
+    auto get=[this](unsigned reg)->std::uint16_t {
+        switch(reg){case 0:return std::uint16_t(a<<8|b);case 1:return x;
+        case 2:return y;case 3:return u;case 4:return s;case 5:return pc;
+        case 8:return a;case 9:return b;case 10:return cc;case 11:return dp;
+        default:return 0xffff;}
+    };
+    const auto src=unsigned(post>>4),dst=unsigned(post&15);
+    if(src>11||dst>11||src==6||src==7||dst==6||dst==7||
+       (src<8)!=(dst<8)){++unsupported_;sync_=true;return 1;}
+    const auto value=get(src);
+    switch(dst){case 0:a=std::uint8_t(value>>8);b=std::uint8_t(value);break;
+    case 1:x=value;break;case 2:y=value;break;case 3:u=value;break;
+    case 4:s=value;break;case 5:pc=value;break;
+    case 8:a=std::uint8_t(value);break;case 9:b=std::uint8_t(value);break;
+    case 10:cc=std::uint8_t(value);break;case 11:dp=std::uint8_t(value);break;}
+    return 6;
+ }
+ case 0x8b:{const auto rhs=fetch();const auto result=unsigned(a)+rhs;
+    cc=std::uint8_t((cc&~0x2f)|(result&0x100?1:0)|
+        (((~(a^rhs))&(a^result)&0x80)?2:0)|
+        ((result&0xff)==0?4:0)|(result&0x80?8:0)|
+        (((a&15)+(rhs&15))>15?0x20:0));
+    a=std::uint8_t(result);return 2;
+ }
+ case 0xcb:{const auto rhs=fetch();const auto result=unsigned(b)+rhs;
+    cc=std::uint8_t((cc&~0x2f)|(result&0x100?1:0)|
+        (((~(b^rhs))&(b^result)&0x80)?2:0)|
+        ((result&0xff)==0?4:0)|(result&0x80?8:0)|
+        (((b&15)+(rhs&15))>15?0x20:0));
+    b=std::uint8_t(result);return 2;
+ }
+ case 0x81:case 0xc1:{ // CMPA / CMPB immediate
+    const auto rhs=fetch();const auto lhs=(op==0x81)?a:b;
+    const auto result=unsigned(lhs)-rhs;
+    cc=std::uint8_t((cc&~0x0f)|(result&0x100?1:0)|
+        (((lhs^rhs)&(lhs^result)&0x80)?2:0)|
+        ((result&0xff)==0?4:0)|(result&0x80?8:0));
+    return 2;
+ }
  case 0x86:a=fetch();setNZ8(a);cc&=std::uint8_t(~2);return 2;
  case 0xc6:b=fetch();setNZ8(b);cc&=std::uint8_t(~2);return 2;
  case 0x8e:x=fetch16();setNZ16(x);cc&=std::uint8_t(~2);return 3;
