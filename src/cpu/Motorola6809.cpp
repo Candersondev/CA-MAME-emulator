@@ -57,8 +57,64 @@ std::uint32_t Motorola6809::step(){
  switch(op){
  case 0x12:return 2; // NOP
  case 0x13:sync_=true;return 4; // SYNC
+ case 0x30:case 0x31:case 0x32:case 0x33:{
+    bool valid=true;unsigned extra=0;
+    const auto addr=indexedAddress(valid,extra);
+    if(!valid){++unsupported_;sync_=true;return 1;}
+    if(op==0x30){x=addr;cc=std::uint8_t((cc&~4)|(x==0?4:0));}
+    else if(op==0x31){y=addr;cc=std::uint8_t((cc&~4)|(y==0?4:0));}
+    else if(op==0x32)s=addr;
+    else u=addr;
+    return 4+extra;
+ }
+ case 0x34:case 0x36:{ // PSHS / PSHU, high bits first
+    const auto mask=fetch();auto& sp=(op==0x34)?s:u;
+    auto push=[this,&sp](std::uint8_t value){write(--sp,value);};
+    auto pushWord=[&](std::uint16_t value){push(std::uint8_t(value));push(std::uint8_t(value>>8));};
+    if(mask&0x80)pushWord(pc);
+    if(mask&0x40)pushWord(op==0x34?u:s);
+    if(mask&0x20)pushWord(y);
+    if(mask&0x10)pushWord(x);
+    if(mask&0x08)push(dp);
+    if(mask&0x04)push(b);
+    if(mask&0x02)push(a);
+    if(mask&0x01)push(cc);
+    unsigned bytes=0;for(unsigned bit=0;bit<8;++bit)if(mask&(1u<<bit))bytes+=(bit>=4)?2:1;
+    return 5+bytes;
+ }
+ case 0x35:case 0x37:{ // PULS / PULU, low bits first
+    const auto mask=fetch();auto& sp=(op==0x35)?s:u;
+    auto pop=[this,&sp](){return read(sp++);};
+    auto popWord=[&](){const auto hi=pop();return std::uint16_t(hi<<8|pop());};
+    if(mask&0x01)cc=pop();
+    if(mask&0x02)a=pop();
+    if(mask&0x04)b=pop();
+    if(mask&0x08)dp=pop();
+    if(mask&0x10)x=popWord();
+    if(mask&0x20)y=popWord();
+    if(mask&0x40){const auto value=popWord();if(op==0x35)u=value;else s=value;}
+    if(mask&0x80)pc=popWord();
+    unsigned bytes=0;for(unsigned bit=0;bit<8;++bit)if(mask&(1u<<bit))bytes+=(bit>=4)?2:1;
+    return 5+bytes;
+ }
  case 0x20:{const auto displacement=static_cast<std::int8_t>(fetch());pc=std::uint16_t(pc+displacement);return 3;} // BRA
  case 0x21:fetch();return 3; // BRN
+ case 0x22:case 0x23:case 0x24:case 0x25:case 0x28:case 0x29:
+ case 0x2a:case 0x2b:case 0x2c:case 0x2d:case 0x2e:case 0x2f:{
+    const auto d=static_cast<std::int8_t>(fetch());
+    const bool c=(cc&1)!=0,z=(cc&4)!=0,n=(cc&8)!=0,v=(cc&2)!=0;
+    bool take=false;
+    switch(op){
+      case 0x22:take=!c&&!z;break;case 0x23:take=c||z;break;
+      case 0x24:take=!c;break;case 0x25:take=c;break;
+      case 0x28:take=!v;break;case 0x29:take=v;break;
+      case 0x2a:take=!n;break;case 0x2b:take=n;break;
+      case 0x2c:take=n==v;break;case 0x2d:take=n!=v;break;
+      case 0x2e:take=!z&&(n==v);break;case 0x2f:take=z||(n!=v);break;
+    }
+    if(take)pc=std::uint16_t(pc+d);
+    return 3;
+ }
  case 0x26:{auto d=static_cast<std::int8_t>(fetch());if(!(cc&4))pc=std::uint16_t(pc+d);return 3;}
  case 0x27:{auto d=static_cast<std::int8_t>(fetch());if(cc&4)pc=std::uint16_t(pc+d);return 3;}
  case 0x16:{const auto displacement=static_cast<std::int16_t>(fetch16());pc=std::uint16_t(pc+displacement);return 5;} // LBRA
