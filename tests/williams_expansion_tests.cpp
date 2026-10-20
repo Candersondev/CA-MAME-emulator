@@ -26,6 +26,14 @@ int main(){
  if(!pia.irq() || !(pia.read(1)&0x80))return fail(7);
  pia.read(0);
  if(pia.irq())return fail(8);
+ // IRQ flags latch even when disabled, and become active when enabled.
+ pia.write(1,0x06);
+ pia.edgeCA1(true);
+ if(pia.irq()||!pia.irqA())return fail(12);
+ pia.write(1,0x07);
+ if(!pia.irq())return fail(13);
+ pia.read(0);
+ if(pia.irq())return fail(14);
  pia.edgeCA1(true);
  if(!pia.irqA()||pia.irqB())return fail(10);
  pia.clearInterrupts();

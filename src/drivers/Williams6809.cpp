@@ -109,6 +109,7 @@ Williams6809::BootDiagnostic Williams6809::runBootDiagnostic(std::uint64_t cycle
     const auto remaining=~std::uint64_t{0}-cycles_;
     const auto target=cycles_+(cycleBudget<remaining?cycleBudget:remaining);
     while(cycles_<target && !cpu_.halted()){
+        if(hardwareBusEnabled_ && (pias_[0].irq()||pias_[1].irq()))cpu_.requestIrq();
         const auto spent=cpu_.step();
         cycles_+=spent?spent:1;
         advanceRaster(spent?spent:1);
@@ -120,6 +121,7 @@ std::uint64_t Williams6809::runFrame(){
     const auto target=++frames_*1000000ull/60;
     const auto before=cycles_;
     while(cycles_<target){
+        if(hardwareBusEnabled_ && (pias_[0].irq()||pias_[1].irq()))cpu_.requestIrq();
         const auto spent=cpu_.step();
         // A zero-cycle step must not stall the frame scheduler forever.
         const auto advanced=spent?spent:1;

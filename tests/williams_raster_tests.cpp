@@ -21,5 +21,11 @@ int main(){
  if(board.scanline()==0)return fail(7);
  board.reset();
  if(board.scanline()!=0||board.rasterInterrupts()!=0)return fail(5);
+ // A second PIA can assert IRQ independently of the video PIA.
+ board.pia(1).write(1,0x07);
+ board.pia(1).edgeCA1(true);
+ if(!board.pia(1).irq()||board.pia(0).irq())return fail(8);
+ board.pia(1).read(0);
+ if(board.pia(1).irq())return fail(9);
  return 0;
 }

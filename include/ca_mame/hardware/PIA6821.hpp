@@ -25,6 +25,7 @@ public:
  }
  void setPortA(std::uint8_t value) noexcept {ira_=value;}
  void setPortB(std::uint8_t value) noexcept {irb_=value;}
+ // IRQ latch remains asserted until the corresponding data port is read.
  void edgeCA1(bool rising) noexcept {if(rising==bool(cra_&2))irqA_=true;}
  void edgeCB1(bool rising) noexcept {if(rising==bool(crb_&2))irqB_=true;}
  void clearInterrupts() noexcept {irqA_=irqB_=false;}
