@@ -9,6 +9,9 @@ namespace ca_mame::hardware {
 class WilliamsBlitter {
 public:
     explicit WilliamsBlitter(WilliamsVideo& video):video_(video){}
+    std::uint64_t totalBytes() const noexcept {return totalBytes_;}
+    std::uint32_t lastBytes() const noexcept {return lastBytes_;}
+    void resetStatistics() noexcept {totalBytes_=0;lastBytes_=0;}
     void setSource(std::uint16_t address) noexcept {source_=address;}
     void setDestination(std::uint16_t address) noexcept {destination_=address;}
     void setDimensions(std::uint8_t width,std::uint8_t height) noexcept {
@@ -38,6 +41,8 @@ public:
                 write(dst,result);
                 ++count;
             }
+        lastBytes_=count;
+        totalBytes_+=count;
         return count;
     }
     template<class Read>
@@ -60,10 +65,14 @@ public:
                 video_.write(dst,result);
                 ++count;
             }
+        lastBytes_=count;
+        totalBytes_+=count;
         return count;
     }
 private:
     WilliamsVideo& video_;
+    std::uint64_t totalBytes_=0;
+    std::uint32_t lastBytes_=0;
     std::uint16_t source_=0,destination_=0;
     std::uint8_t width_=0,height_=0,control_=0,solid_=0;
 };
